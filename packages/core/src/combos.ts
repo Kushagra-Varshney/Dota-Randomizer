@@ -39,7 +39,7 @@ export const COMBOS: readonly Combo[] = [
     how: 'Ravage → Black Hole as the stun ends → Midnight Pulse inside the vortex',
     style: 'classic',
     abilities: ['tidehunter_ravage', 'enigma_black_hole', 'enigma_midnight_pulse'],
-    verifiedPatch: '7.41c',
+    verifiedPatch: '7.41f',
     moment: 'TI2: EG\'s Ravage + Black Hole take a map off iG',
     source: 'https://www.gosugamers.net/dota2/features/38100-do-you-remember-the-big-plays-throughout-dota-2-s-history',
   },
@@ -104,7 +104,7 @@ export const COMBOS: readonly Combo[] = [
     how: 'Black Hole → QoP Blinks to the edge → Sonic Wave through the whole vortex',
     style: 'classic',
     abilities: ['enigma_black_hole', 'queenofpain_blink', 'queenofpain_sonic_wave'],
-    verifiedPatch: '7.41c',
+    verifiedPatch: '7.41f',
   },
   {
     id: 'vacuum-rp',
@@ -149,7 +149,7 @@ export const COMBOS: readonly Combo[] = [
     how: 'Arena of Blood → Ice Path → Macropyre down the middle of the arena',
     style: 'classic',
     abilities: ['mars_arena_of_blood', 'jakiro_ice_path', 'jakiro_macropyre'],
-    verifiedPatch: '7.41c',
+    verifiedPatch: '7.41f',
   },
   {
     id: 'arena-wukong',
