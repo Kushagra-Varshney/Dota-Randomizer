@@ -8,7 +8,7 @@ Random Dota 2 drafts for your stack. Pick who's playing, choose a mode, hit **Sp
 - **Modes**
   - **Standard**: random heroes that fit their position.
   - **All Random**: any hero, any role.
-  - **Wombo Combo**: a classic ult combo (Ravage → Black Hole, RP → Echo Slam, Chrono + Death Ward…) placed on fitting roles, plus teamfight filler.
+  - **Wombo Combo**: 96 hand-checked combos: real ult chains (Vacuum → RP → Echo Slam, Ravage → Black Hole…) and pub/Turbo memes (Snapfire spits Pudge, Huskar Can't Die…), some with the famous pro moment they come from. Pick Classics, Memes or both.
   - **Off-Role**: supports on cores, cores on support.
   - **Themed**: Knife Fight (melee), Artillery (ranged), one attribute, Global Presence, Now You See Me (invis), Tower Rush, Stun Lock, Micro Madness, or Surprise me.
 - **Rules.** Random or preference-weighted roles, 1–3 hero choices per player (Single Draft style), positions in play, avoid heroes from recent saved drafts, global hero bans.
@@ -77,10 +77,20 @@ cd apps/api && npx wrangler d1 execute DB --remote --command "DELETE FROM pin_at
 
 [.github/workflows/deploy.yml](.github/workflows/deploy.yml) deploys on every push to `main`. Add two repository secrets: `CLOUDFLARE_API_TOKEN` (a token from the "Edit Cloudflare Workers" template, plus D1 edit permission) and `CLOUDFLARE_ACCOUNT_ID`.
 
+## Keeping combos current
+
+Every Wombo combo in [combos.ts](packages/core/src/combos.ts) lists the exact abilities it relies on (e.g. `tidehunter_ravage`, `enigma_black_hole`) and the patch it was last checked on (`verifiedPatch`). Three things keep the list honest:
+
+1. **Tests.** `npm test` fails if a combo uses an ability that isn't in its hero's current kit (from the snapshot `npm run heroes:sync` saves). A removed mechanic like Chen's old Test of Faith teleport can't sneak back in.
+2. **Weekly patch check.** [.github/workflows/combo-check.yml](.github/workflows/combo-check.yml) runs every Monday. It reads Valve's official patch notes (including lettered patches like 7.41f) and opens or updates a GitHub issue listing every combo whose abilities changed since it was verified, quoting the actual notes. No secrets needed. Run it locally with `npm run combos:check`.
+3. **Re-verify.** For each flagged combo: confirm it still works (Liquipedia hero page, patch notes, a recent clip), fix the `how` text or delete the combo, set `verifiedPatch` to the current patch, then `npm run heroes:sync && npm test` and deploy.
+
+Adding a combo: append it with `style: 'classic'` (a real ult chain: setup → payoff) or `style: 'meme'` (pub/Turbo trick), its `abilities`, `verifiedPatch`, and ideally a `source` link.
+
 ## When Valve adds a hero
 
 ```sh
-npm run heroes:sync   # pulls the new hero list from OpenDota
+npm run heroes:sync   # pulls the hero list (OpenDota) and every hero's current abilities (Valve)
 npm test              # fails and names any hero missing from hero-meta.ts
 ```
 

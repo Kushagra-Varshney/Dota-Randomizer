@@ -17,7 +17,8 @@
     "db:migrate:local": "npm -w @dota-picker/api run db:migrate:local",
     "db:migrate:remote": "npm -w @dota-picker/api run db:migrate:remote",
     "deploy": "npm run build && npm -w @dota-picker/api run deploy",
-    "heroes:sync": "npm -w @dota-picker/core run heroes:sync"
+    "heroes:sync": "npm -w @dota-picker/core run heroes:sync",
+    "combos:check": "npm -w @dota-picker/core run combos:check"
   },
   "devDependencies": {
     "concurrently": "^10.0.5",

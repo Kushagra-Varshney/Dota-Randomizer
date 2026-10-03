@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { BASE_HEROES } from './data/heroes.generated';
 import { HERO_META } from './data/hero-meta';
+import { ABILITIES_PATCH, HERO_ABILITIES } from './data/hero-abilities.generated';
 import {
   COMBOS,
+  comboOffRoleAllowance,
   HERO_BY_ID,
   HERO_BY_KEY,
   THEMES,
@@ -196,6 +198,72 @@ describe('generateDraft', () => {
   it('rejects empty and oversized stacks', () => {
     expect(() => generateDraft([], { mode: 'standard' })).toThrow(RangeError);
     expect(() => generateDraft(stack(6), { mode: 'standard' })).toThrow(RangeError);
+  });
+});
+
+describe('combos', () => {
+  it('have unique ids and unique hero sets', () => {
+    expect(new Set(COMBOS.map((c) => c.id)).size).toBe(COMBOS.length);
+    const sets = COMBOS.map((c) => [...c.heroes].sort().join('+'));
+    expect(sets.filter((s, i) => sets.indexOf(s) !== i), 'duplicate combos').toEqual([]);
+  });
+
+  it('have 2–5 distinct heroes, text and a style', () => {
+    for (const c of COMBOS) {
+      expect(c.heroes.length, c.id).toBeGreaterThanOrEqual(2);
+      expect(c.heroes.length, c.id).toBeLessThanOrEqual(5);
+      expect(new Set(c.heroes).size, c.id).toBe(c.heroes.length);
+      expect(c.name.length, c.id).toBeLessThanOrEqual(32);
+      expect(c.how.length, c.id).toBeGreaterThan(10);
+      expect(['classic', 'meme'], c.id).toContain(c.style);
+      if (c.source) expect(c.source, c.id).toMatch(/^https:\/\//);
+    }
+  });
+
+  it("only rely on abilities that are in the heroes' current kits", () => {
+    for (const c of COMBOS) {
+      expect(c.abilities.length, c.id).toBeGreaterThanOrEqual(1);
+      for (const ability of c.abilities) {
+        const owner = c.heroes.find((h) => HERO_ABILITIES[h]?.includes(ability));
+        expect(owner, `${c.id}: "${ability}" is not in the current kit of ${c.heroes.join(', ')}`).toBeDefined();
+      }
+    }
+  });
+
+  it('were verified on a real patch no newer than the hero snapshot', () => {
+    const parse = (p: string) => /^(\d+)\.(\d+)([a-z]?)$/.exec(p)!;
+    const [, major, minor] = parse(ABILITIES_PATCH);
+    for (const c of COMBOS) {
+      const m = parse(c.verifiedPatch);
+      expect(m, `${c.id}: bad verifiedPatch "${c.verifiedPatch}"`).toBeTruthy();
+      expect(Number(m[1]) * 1000 + Number(m[2]), c.id).toBeLessThanOrEqual(Number(major) * 1000 + Number(minor));
+    }
+  });
+
+  it('can put every classic combo on its heroes\' real roles (one flex pick for 4–5 heroes)', () => {
+    // Most heroes that can land on a distinct position they actually play.
+    const maxFit = (keys: string[], used: Set<Position> = new Set()): number => {
+      const [first, ...rest] = keys;
+      if (!first) return 0;
+      let best = maxFit(rest, used); // this hero goes off-role
+      for (const p of HERO_BY_KEY.get(first)!.positions) {
+        if (!used.has(p)) best = Math.max(best, 1 + maxFit(rest, new Set([...used, p])));
+      }
+      return best;
+    };
+    const misfits = COMBOS.filter(
+      (c) => c.style === 'classic' && c.heroes.length - maxFit(c.heroes) > comboOffRoleAllowance(c),
+    ).map((c) => c.id);
+    expect(misfits).toEqual([]);
+  });
+
+  it('only draws combos of the chosen style', () => {
+    for (const style of ['classic', 'meme'] as const) {
+      for (const seed of seeds(60)) {
+        const d = generateDraft(stack(5), { mode: 'wombo', comboStyle: style, seed });
+        expect(COMBOS.find((c) => c.id === d.comboId)?.style, `${style} ${seed}`).toBe(style);
+      }
+    }
   });
 });
 

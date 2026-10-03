@@ -66,8 +66,11 @@ export function draftToText(draft: DraftResult, url?: string): string {
     ]);
   const w0 = Math.max(...rows.map((r) => r[0]!.length));
   const w1 = Math.max(...rows.map((r) => r[1]!.length));
+  const combo = draft.mode === 'wombo' ? getCombo(draft.comboId) : undefined;
   return [
     `**Dota draft · ${getMode(draft.mode).name}${extra ? ` · ${extra}` : ''}**`,
+    ...(combo ? [`> ${combo.how}`] : []),
+    ...(combo?.moment ? [`> 🏆 ${combo.moment}`] : []),
     '```',
     ...rows.map(([pos, name, hero]) => `${pos!.padEnd(w0)}  ${name!.padEnd(w1)}  ${hero}`),
     '```',

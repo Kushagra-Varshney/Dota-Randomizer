@@ -1,10 +1,19 @@
-import { MAX_STACK, POSITIONS, type DraftMode, type Position, type RoleMode, type ThemeChoice } from '@dota-picker/core';
+import {
+  MAX_STACK,
+  POSITIONS,
+  type ComboChoice,
+  type DraftMode,
+  type Position,
+  type RoleMode,
+  type ThemeChoice,
+} from '@dota-picker/core';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
 export interface Settings {
   mode: DraftMode;
   theme: ThemeChoice;
+  comboStyle: ComboChoice;
   roles: RoleMode;
   positions: Position[];
   choices: number;
@@ -31,6 +40,7 @@ interface SettingsStore extends Settings {
 const DEFAULTS: Settings = {
   mode: 'standard',
   theme: 'surprise',
+  comboStyle: 'all',
   roles: 'random',
   positions: [...POSITIONS],
   choices: 1,

@@ -1,0 +1,37 @@
+name: Combo patch check
+
+# Weekly: compares every Wombo combo against the latest Dota 2 patch notes and opens
+# (or updates) a GitHub issue listing combos to re-check. Uses only the built-in token.
+on:
+  schedule:
+    - cron: '0 9 * * 1' # Mondays 09:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Check combos against live patch data
+        # Exits 1 when a combo is broken; the issue step below still runs.
+        continue-on-error: true
+        run: node packages/core/scripts/check-combos.mjs --out combo-report.md
+      - name: Open or update the re-check issue
+        if: hashFiles('combo-report.md') != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh label create combo-check --color FBCA04 --description "Combos to re-check after a patch" --force
+          issue=$(gh issue list --label combo-check --state open --json number --jq '.[0].number')
+          if [ -n "$issue" ]; then
+            gh issue edit "$issue" --body-file combo-report.md
+          else
+            gh issue create --title "Wombo combos need a re-check after a patch" --label combo-check --body-file combo-report.md
+          fi

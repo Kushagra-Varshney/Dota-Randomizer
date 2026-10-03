@@ -1,5 +1,5 @@
 import { getCombo, getHero, getMode, getTheme, POSITION_INFO, type Draft, type Position } from '@dota-picker/core';
-import { BookmarkCheck, BookmarkPlus, Link2, MessageSquare, Palette, Sparkles, X } from 'lucide-react';
+import { BookmarkCheck, BookmarkPlus, ExternalLink, Info, Link2, MessageSquare, Palette, Sparkles, Trophy, X } from 'lucide-react';
 import type { CSSProperties, ReactNode } from 'react';
 import { copyForDiscord, saveCurrentDraft, shareDraft, slotKey } from '../lib/actions';
 import { useDraftStore } from '../lib/draftStore';
@@ -34,7 +34,19 @@ export function Board() {
   );
 }
 
-function Banner({ tone, icon, title, children }: { tone: 'gold' | 'accent'; icon: ReactNode; title: string; children?: ReactNode }) {
+function Banner({
+  tone,
+  icon,
+  title,
+  children,
+  footer,
+}: {
+  tone: 'gold' | 'accent';
+  icon: ReactNode;
+  title: string;
+  children?: ReactNode;
+  footer?: ReactNode;
+}) {
   return (
     <div
       className={cx(
@@ -52,6 +64,7 @@ function Banner({ tone, icon, title, children }: { tone: 'gold' | 'accent'; icon
         {title}
       </span>
       {children && <span className="text-sm text-muted">{children}</span>}
+      {footer && <div className="flex w-full flex-wrap items-center gap-x-3 gap-y-1 pt-1 text-xs">{footer}</div>}
     </div>
   );
 }
@@ -82,7 +95,39 @@ function DraftSummary({ draft }: { draft: Draft }) {
         <span>{draft.slots.length === 1 ? 'Solo' : `${draft.slots.length}-stack`}</span>
       </div>
       {combo && (
-        <Banner tone="gold" icon={<Sparkles size={18} />} title={combo.name}>
+        <Banner
+          tone="gold"
+          icon={<Sparkles size={18} />}
+          title={combo.name}
+          footer={
+            <>
+              {combo.style === 'meme' && <span className="rounded bg-pos4/15 px-1.5 py-px font-semibold text-pos4">🤡 Meme combo</span>}
+              {combo.note && (
+                <span className="flex items-center gap-1 text-pos1">
+                  <Info size={12} /> {combo.note}
+                </span>
+              )}
+              {combo.moment && (
+                <span className="flex items-center gap-1 text-gold/90">
+                  <Trophy size={12} /> {combo.moment}
+                </span>
+              )}
+              <span className="ml-auto flex items-center gap-3 text-faint">
+                <span title="Every ability in this combo was checked against this patch">Checked on {combo.verifiedPatch}</span>
+                {combo.source && (
+                  <a
+                    href={combo.source}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex items-center gap-1 underline-offset-2 hover:text-ink hover:underline"
+                  >
+                    Source <ExternalLink size={11} />
+                  </a>
+                )}
+              </span>
+            </>
+          }
+        >
           {broken ? 'Combo broken by a reroll. Draft again to get one back.' : combo.how}
         </Banner>
       )}

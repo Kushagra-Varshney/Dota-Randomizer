@@ -1,5 +1,6 @@
-import { MODES, THEMES, getMode, type DraftMode, type ThemeChoice } from '@dota-picker/core';
+import { COMBOS, MODES, THEMES, getMode, type ComboChoice, type DraftMode, type ThemeChoice } from '@dota-picker/core';
 import { Dices, Layers, Palette, Shuffle, Sparkles, Swords, type LucideIcon } from 'lucide-react';
+import type { ReactNode } from 'react';
 import { useSettings } from '../lib/settings';
 import { cx } from '../lib/ui';
 import { Panel } from './primitives';
@@ -20,10 +21,35 @@ const SHORT: Record<DraftMode, string> = {
   theme: 'Themed',
 };
 
+const count = (style: ComboChoice) => COMBOS.filter((c) => style === 'all' || c.style === style).length;
+
+const COMBO_STYLES: { value: ComboChoice; label: string; hint: string; count: number }[] = [
+  { value: 'all', label: 'Any combo', hint: 'Classics and memes mixed together.', count: count('all') },
+  { value: 'classic', label: 'Classics', hint: 'Real teamfight combos that hold up in serious games.', count: count('classic') },
+  { value: 'meme', label: '🤡 Memes', hint: 'Pub and Turbo shenanigans. Fun first, winning optional.', count: count('meme') },
+];
+
+function Chip({ active, onClick, title, children }: { active: boolean; onClick: () => void; title?: string; children: ReactNode }) {
+  return (
+    <button
+      onClick={onClick}
+      aria-pressed={active}
+      title={title}
+      className={cx(
+        'rounded-full border px-2.5 py-1 text-xs font-semibold transition',
+        active ? 'border-accent/70 bg-accent/15 text-ink' : 'border-line text-muted hover:border-line-2 hover:text-ink',
+      )}
+    >
+      {children}
+    </button>
+  );
+}
+
 export function ModePanel() {
   const mode = useSettings((s) => s.mode);
   const theme = useSettings((s) => s.theme);
   const set = useSettings((s) => s.set);
+  const comboStyle = useSettings((s) => s.comboStyle);
   const activeTheme = THEMES.find((t) => t.id === theme);
 
   return (
@@ -56,24 +82,28 @@ export function ModePanel() {
         <span className="font-semibold text-ink">{getMode(mode).name}.</span> {getMode(mode).blurb}.
       </p>
 
+      {mode === 'wombo' && (
+        <div className="mt-3 border-t border-line pt-3">
+          <div className="flex flex-wrap gap-1.5">
+            {COMBO_STYLES.map((o) => (
+              <Chip key={o.value} active={comboStyle === o.value} onClick={() => set({ comboStyle: o.value })} title={o.hint}>
+                {o.label} <span className="text-faint">{o.count}</span>
+              </Chip>
+            ))}
+          </div>
+          <p className="mt-2 text-xs text-faint">{COMBO_STYLES.find((o) => o.value === comboStyle)?.hint}</p>
+        </div>
+      )}
+
       {mode === 'theme' && (
         <div className="mt-3 border-t border-line pt-3">
           <div className="flex flex-wrap gap-1.5">
             {(['surprise', ...THEMES.map((t) => t.id)] as ThemeChoice[]).map((id) => {
               const t = THEMES.find((x) => x.id === id);
               return (
-                <button
-                  key={id}
-                  onClick={() => set({ theme: id })}
-                  aria-pressed={theme === id}
-                  title={t?.blurb ?? 'A random theme every draft'}
-                  className={cx(
-                    'rounded-full border px-2.5 py-1 text-xs font-semibold transition',
-                    theme === id ? 'border-accent/70 bg-accent/15 text-ink' : 'border-line text-muted hover:border-line-2 hover:text-ink',
-                  )}
-                >
+                <Chip key={id} active={theme === id} onClick={() => set({ theme: id })} title={t?.blurb ?? 'A random theme every draft'}>
                   {t?.name ?? '🎲 Surprise me'}
-                </button>
+                </Chip>
               );
             })}
           </div>

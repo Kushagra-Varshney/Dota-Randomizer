@@ -1,4 +1,4 @@
-import { COMBOS, getCombo, type Combo } from './combos';
+import { COMBOS, getCombo, type Combo, type ComboStyle } from './combos';
 import { HEROES } from './heroes';
 import { getTheme, THEMES } from './modes';
 import { createRng, pickOne, shuffle, weightedPick, weightedShuffle, type Rng } from './rng';
@@ -24,10 +24,13 @@ export interface SlotInput {
 
 export type RoleMode = 'random' | 'preferred';
 export type ThemeChoice = ThemeId | 'surprise';
+export type ComboChoice = ComboStyle | 'all';
 
 export interface DraftOptions {
   mode: DraftMode;
   theme?: ThemeChoice;
+  /** Which combos Wombo mode may draw: real teamfight classics, pub memes, or both. */
+  comboStyle?: ComboChoice;
   roles?: RoleMode;
   /** Positions that may be handed out. Extra positions are only used if there are more players. */
   positions?: readonly Position[];
@@ -189,61 +192,76 @@ function assignPositions(
   return result as Position[];
 }
 
-/** Backtracking match of combo heroes onto distinct slots. */
-function matchHeroes(
+/**
+ * Puts combo heroes on distinct slots, maximising how many land on a position they actually
+ * play (ties broken at random). Returns null if bans make any placement impossible.
+ */
+function bestPlacement(
   rng: Rng,
   heroes: readonly Hero[],
   slots: readonly number[],
-  ok: (hero: Hero, slot: number) => boolean,
-): [number, Hero][] | null {
+  allowed: (hero: Hero, slot: number) => boolean,
+  fits: (hero: Hero, slot: number) => boolean,
+): { placement: [number, Hero][]; offRole: number } | null {
   const order = shuffle(rng, slots);
   const taken = new Set<number>();
-  const out: [number, Hero][] = [];
-  const walk = (k: number): boolean => {
+  const current: [number, Hero][] = [];
+  let best: [number, Hero][] | null = null;
+  let bestFit = -1;
+  const walk = (k: number, fit: number) => {
     const hero = heroes[k];
-    if (!hero) return true;
-    for (const slot of order) {
-      if (taken.has(slot) || !ok(hero, slot)) continue;
-      taken.add(slot);
-      out.push([slot, hero]);
-      if (walk(k + 1)) return true;
-      taken.delete(slot);
-      out.pop();
+    if (!hero) {
+      if (fit > bestFit) [best, bestFit] = [[...current], fit];
+      return;
     }
-    return false;
+    if (fit + (heroes.length - k) <= bestFit) return; // can't beat what we have
+    for (const slot of order) {
+      if (taken.has(slot) || !allowed(hero, slot)) continue;
+      taken.add(slot);
+      current.push([slot, hero]);
+      walk(k + 1, fit + (fits(hero, slot) ? 1 : 0));
+      taken.delete(slot);
+      current.pop();
+    }
   };
-  return walk(0) ? out : null;
+  walk(0, 0);
+  return best ? { placement: best, offRole: heroes.length - bestFit } : null;
 }
+
+/**
+ * How many combo heroes may land off-role and still count as a good fit for the rolled
+ * positions: none for duos and trios, one flex pick for 4–5 hero lineups.
+ */
+export const comboOffRoleAllowance = (combo: Combo) => (combo.heroes.length >= 4 ? 1 : 0);
 
 function placeCombo(
   ctx: Ctx,
   inputs: readonly SlotInput[],
   positions: readonly Position[],
   free: readonly number[],
+  style: ComboChoice,
 ): { combo: Combo; placement: [number, Hero][] } | null {
   const usable: { combo: Combo; heroes: Hero[] }[] = [];
   for (const combo of COMBOS) {
-    if (combo.heroes.length > free.length) continue;
+    if (combo.heroes.length > free.length || (style !== 'all' && combo.style !== style)) continue;
     const heroes = combo.heroes.map((key) => ctx.heroes.find((h) => h.key === key));
     if (heroes.every((h): h is Hero => !!h && !ctx.used.has(h.id) && !ctx.bans.has(h.id))) {
       usable.push({ combo, heroes });
     }
   }
-  // Bigger combos are rarer but more fun, so weight them up.
-  const ordered = weightedShuffle(ctx.rng, usable, (c) => c.heroes.length ** 2);
-  for (const strict of [true, false]) {
-    for (const { combo, heroes } of ordered) {
-      const placement = matchHeroes(
-        ctx.rng,
-        heroes,
-        free,
-        (hero, slot) =>
-          !(inputs[slot]!.bans ?? []).includes(hero.id) && (!strict || hero.positions.includes(positions[slot]!)),
-      );
-      if (placement) return { combo, placement };
-    }
+  // Bigger combos are rarer but more fun, so weight them up a little (not so much they repeat).
+  const ordered = weightedShuffle(ctx.rng, usable, (c) => c.heroes.length);
+  const allowed = (hero: Hero, slot: number) => !(inputs[slot]!.bans ?? []).includes(hero.id);
+  const fits = (hero: Hero, slot: number) => hero.positions.includes(positions[slot]!);
+  // First pass: only combos that fit the rolled positions well. Second: anything placeable.
+  let fallback: { combo: Combo; placement: [number, Hero][] } | null = null;
+  for (const { combo, heroes } of ordered) {
+    const result = bestPlacement(ctx.rng, heroes, free, allowed, fits);
+    if (!result) continue;
+    if (result.offRole <= comboOffRoleAllowance(combo)) return { combo, placement: result.placement };
+    fallback ??= { combo, placement: result.placement };
   }
-  return null;
+  return fallback;
 }
 
 function resolveTheme(rng: Rng, theme: ThemeChoice | undefined): ThemeId {
@@ -286,7 +304,7 @@ export function generateDraft(inputs: readonly SlotInput[], options: DraftOption
     if (previous && previous.heroes.every((key) => keptKeys.has(key))) {
       comboId = previous.id;
     } else {
-      const placed = placeCombo(ctx, inputs, positions, open());
+      const placed = placeCombo(ctx, inputs, positions, open(), options.comboStyle ?? 'all');
       if (placed) {
         comboId = placed.combo.id;
         for (const [i, hero] of placed.placement) {

@@ -81,6 +81,7 @@ export function rollDraft(): void {
   const result = generateDraft(stack, {
     mode: s.mode,
     theme: s.theme,
+    comboStyle: s.comboStyle,
     roles: s.roles,
     positions: s.positions,
     choices: s.choices,
