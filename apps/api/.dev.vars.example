@@ -1,0 +1,3 @@
+# Copy to .dev.vars to test the PIN locally. In production set it with:
+#   npx wrangler secret put SQUAD_PIN
+SQUAD_PIN=1234

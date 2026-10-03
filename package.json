@@ -1,0 +1,29 @@
+{
+  "name": "dota-picker",
+  "private": true,
+  "type": "module",
+  "description": "Random Dota 2 draft generator for your stack",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "npm run db:migrate:local && concurrently -k -n api,web -c magenta,cyan \"npm:dev:api\" \"npm:dev:web\"",
+    "dev:api": "npm -w @dota-picker/api run dev",
+    "dev:web": "npm -w @dota-picker/web run dev",
+    "build": "npm -w @dota-picker/web run build",
+    "test": "npm -w @dota-picker/core run test",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "db:migrate:local": "npm -w @dota-picker/api run db:migrate:local",
+    "db:migrate:remote": "npm -w @dota-picker/api run db:migrate:remote",
+    "deploy": "npm run build && npm -w @dota-picker/api run deploy",
+    "heroes:sync": "npm -w @dota-picker/core run heroes:sync"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.5",
+    "typescript": "^7.0.2"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

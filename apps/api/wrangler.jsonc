@@ -1,0 +1,27 @@
+{
+	"$schema": "../../node_modules/wrangler/config-schema.json",
+	"name": "dota-picker",
+	"main": "src/index.ts",
+	"compatibility_date": "2026-09-01",
+	"observability": {
+		"enabled": true
+	},
+	// The built web app is served as static assets; only /api/* reaches the Worker code.
+	"assets": {
+		"directory": "../web/dist",
+		"binding": "ASSETS",
+		"not_found_handling": "single-page-application",
+		"run_worker_first": [
+			"/api/*"
+		]
+	},
+	// Created automatically by the first `wrangler deploy`. The ID isn't a secret; keep it committed.
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "dota-picker",
+			"migrations_dir": "migrations",
+			"database_id": "07e1da54-7179-46c5-8833-ef8bcb658ce1"
+		}
+	]
+}

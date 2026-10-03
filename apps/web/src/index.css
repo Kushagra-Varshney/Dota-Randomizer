@@ -1,0 +1,107 @@
+@import 'tailwindcss';
+
+@theme {
+  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Barlow Condensed', 'Inter', ui-sans-serif, sans-serif;
+
+  --color-bg: #090b10;
+  --color-panel: #10141b;
+  --color-panel-2: #161b25;
+  --color-line: #222a36;
+  --color-line-2: #313b4b;
+  --color-ink: #e9edf3;
+  --color-muted: #8b96a8;
+  --color-faint: #5d6778;
+
+  --color-accent: #e5483a;
+  --color-accent-2: #ff6b3d;
+  --color-gold: #e9b44c;
+  --color-ok: #4cc777;
+
+  --color-str: #ef5b3d;
+  --color-agi: #3fcf6a;
+  --color-int: #3db4f2;
+  --color-all: #c38dff;
+
+  --color-pos1: #f2b33d;
+  --color-pos2: #4aa8ff;
+  --color-pos3: #ff7a45;
+  --color-pos4: #b67cff;
+  --color-pos5: #35d0aa;
+
+  --animate-pop: pop 520ms cubic-bezier(0.2, 0.9, 0.25, 1.15) both;
+  --animate-fade-up: fade-up 260ms ease-out both;
+  --animate-flash: flash 700ms ease-out both;
+
+  @keyframes pop {
+    0% { transform: scale(1.12); filter: brightness(2.2) saturate(0.6); }
+    100% { transform: scale(1); filter: none; }
+  }
+  @keyframes fade-up {
+    0% { opacity: 0; transform: translateY(6px); }
+    100% { opacity: 1; transform: none; }
+  }
+  @keyframes flash {
+    0% { opacity: 0.9; }
+    100% { opacity: 0; }
+  }
+}
+
+@layer base {
+  html {
+    color-scheme: dark;
+    -webkit-tap-highlight-color: transparent;
+  }
+  body {
+    background-color: var(--color-bg);
+    background-image:
+      radial-gradient(1200px 500px at 15% -10%, rgb(229 72 58 / 0.10), transparent 60%),
+      radial-gradient(900px 500px at 100% 0%, rgb(61 180 242 / 0.06), transparent 60%);
+    background-attachment: fixed;
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  ::selection {
+    background: rgb(229 72 58 / 0.4);
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-accent-2);
+    outline-offset: 2px;
+  }
+  button:not(:disabled) {
+    cursor: pointer;
+  }
+}
+
+@layer components {
+  .kbd {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.4em;
+    height: 1.4em;
+    padding: 0 0.35em;
+    border-radius: 0.3rem;
+    border: 1px solid var(--color-line-2);
+    border-bottom-width: 2px;
+    background: var(--color-panel-2);
+    font: 600 0.7rem/1 var(--font-sans);
+    color: var(--color-muted);
+    letter-spacing: normal;
+    text-transform: none;
+  }
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-line-2) transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    transition-duration: 1ms !important;
+  }
+}

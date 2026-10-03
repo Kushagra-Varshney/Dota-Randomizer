@@ -1,0 +1,19 @@
+{
+  "name": "@dota-picker/core",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Hero data and the draft engine, shared by the web app and the API",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "heroes:sync": "node scripts/sync-heroes.mjs"
+  },
+  "devDependencies": {
+    "vitest": "^5.0.3"
+  }
+}
