@@ -3,7 +3,8 @@
 //   CHANGED - an ability it relies on was changed in a patch released after the combo's verifiedPatch.
 // Prints a markdown report. With `--out <file>` it also writes the report there, but only when
 // something needs attention (the weekly GitHub workflow turns that file into an issue).
-// Exits with code 1 when any combo is broken.
+// Exit codes: 0 = all clear, 10 = needs attention, anything else = the check itself failed.
+export const NEEDS_ATTENTION = 10;
 import { writeFile } from 'node:fs/promises';
 import { COMBOS } from '../src/combos.ts';
 import { ABILITIES_PATCH } from '../src/data/hero-abilities.generated.ts';
@@ -114,4 +115,4 @@ console.log(text);
 
 const outIndex = process.argv.indexOf('--out');
 if (outIndex !== -1 && needsAttention) await writeFile(process.argv[outIndex + 1], `${text}\n`);
-process.exitCode = broken.length ? 1 : 0;
+process.exitCode = needsAttention ? NEEDS_ATTENTION : 0;

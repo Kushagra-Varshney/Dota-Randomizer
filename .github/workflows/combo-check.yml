@@ -1,37 +1,65 @@
 name: Combo patch check
 
-# Weekly: compares every Wombo combo against the latest Dota 2 patch notes and opens
-# (or updates) a GitHub issue listing combos to re-check. Uses only the built-in token.
+# Compares every Wombo combo against Valve's latest Dota 2 patch notes. Opens (or updates)
+# a GitHub issue listing combos to re-check, and closes it again once everything is clear.
+# Runs weekly, on demand, and whenever the combos or the checker change.
 on:
   schedule:
     - cron: '0 9 * * 1' # Mondays 09:00 UTC
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - packages/core/src/combos.ts
+      - packages/core/src/data/hero-abilities.generated.ts
+      - packages/core/scripts/check-combos.mjs
+      - .github/workflows/combo-check.yml
 
 permissions:
   contents: read
   issues: write
 
+concurrency:
+  group: combo-check
+  cancel-in-progress: false
+
 jobs:
   check:
     runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      LABEL: combo-check
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 24
       - name: Check combos against live patch data
-        # Exits 1 when a combo is broken; the issue step below still runs.
-        continue-on-error: true
-        run: node packages/core/scripts/check-combos.mjs --out combo-report.md
-      - name: Open or update the re-check issue
-        if: hashFiles('combo-report.md') != ''
-        env:
-          GH_TOKEN: ${{ github.token }}
+        id: check
+        # 0 = all clear, 10 = needs attention; anything else is a real failure and fails the job.
         run: |
-          gh label create combo-check --color FBCA04 --description "Combos to re-check after a patch" --force
-          issue=$(gh issue list --label combo-check --state open --json number --jq '.[0].number')
+          set +e
+          node packages/core/scripts/check-combos.mjs --out combo-report.md
+          code=$?
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          if [ "$code" -ne 0 ] && [ "$code" -ne 10 ]; then exit "$code"; fi
+      - name: Open or update the re-check issue
+        if: steps.check.outputs.code == '10'
+        run: |
+          gh label create "$LABEL" --color FBCA04 --description "Combos to re-check after a patch" --force
+          issue=$(gh issue list --label "$LABEL" --state open --json number --jq '.[0].number')
           if [ -n "$issue" ]; then
             gh issue edit "$issue" --body-file combo-report.md
+            echo "Updated issue #$issue"
           else
-            gh issue create --title "Wombo combos need a re-check after a patch" --label combo-check --body-file combo-report.md
+            gh issue create --title "Wombo combos need a re-check after a patch" --label "$LABEL" --body-file combo-report.md
+          fi
+      - name: Close the re-check issue when all clear
+        if: steps.check.outputs.code == '0'
+        run: |
+          issue=$(gh issue list --label "$LABEL" --state open --json number --jq '.[0].number')
+          if [ -n "$issue" ]; then
+            gh issue close "$issue" --comment "All combos are up to date again ($(date -u +%F), run ${{ github.run_id }})."
+          else
+            echo "Nothing to close."
           fi
