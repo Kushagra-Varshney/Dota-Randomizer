@@ -1,7 +1,7 @@
-import { getCombo, getHero, getMode, getTheme, POSITION_INFO, type Draft, type Position } from '@dota-picker/core';
+import { getCombo, getHero, getMode, getTheme, POSITION_INFO, slotKey, type Draft, type Position } from '@dota-picker/core';
 import { BookmarkCheck, BookmarkPlus, ExternalLink, Info, Link2, MessageSquare, Palette, Sparkles, Trophy, X } from 'lucide-react';
 import type { CSSProperties, ReactNode } from 'react';
-import { copyForDiscord, saveCurrentDraft, shareDraft, slotKey } from '../lib/actions';
+import { copyForDiscord, saveCurrentDraft, shareDraft } from '../lib/actions';
 import { useDraftStore } from '../lib/draftStore';
 import { useSettings } from '../lib/settings';
 import { useSquad } from '../lib/squad';

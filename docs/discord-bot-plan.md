@@ -1,6 +1,6 @@
 # Discord bot: implementation plan
 
-Status: **planned, not started** (written 2026-10-17). Work happens on the `discord-bot` branch; merging to `main` auto-deploys.
+Status: **built, waiting on the Discord test** (written and implemented 2026-10-17). Milestones 1–6 are done and tested locally with signed fake interactions; Milestone 0 (overlay clicks) and 7 (real server) need Discord. Work happens on the `discord-bot` branch; merging to `main` auto-deploys.
 
 To pick this up in a new Claude Code session: `git switch discord-bot`, then ask Claude to read this file and start at [Milestones](#milestones).
 
@@ -218,6 +218,15 @@ Discord needs a public HTTPS URL. Run `npm run dev:api` (port 8787), then `cloud
 7. **Real-world check**: run a full session in our server through the overlay. Then README, merge to `main` (auto-deploys), and run the migration (`npm run deploy` applies it).
 
 Done means: in game, without alt-tab, anyone can roll, reroll a slot, lock and save, and everyone sees the same lineup. `npm test` and `npm run typecheck` pass, and nothing new costs money.
+
+## Implementation notes (where the build differs from the plan above)
+
+- **Layout A/B is a `/setup` option**: `/setup layout:Compact list|Hero cards`, stored in a `layout` column on `discord_guilds`. Cards are one embed per slot with the hero portrait and player colour.
+- **`/draft mode:` changes the server mode**, so 🎲 Reroll unlocked keeps using it. The panel shows the change on its next click (we don't keep panel message ids, so we can't edit old panels).
+- **Row id vs draft id**: `discord_drafts.id` is the message key in custom_ids and never changes. The `Draft` inside gets a new `id` on 🎲 Reroll unlocked (a new roll, like web), so saving after a full reroll adds a new history entry instead of overwriting.
+- **`/rules` shipped in v1** (replies ephemerally). The spin animation did not.
+- **Pure logic for tests**: `applyPanel`, `applyReroll`, `applyLock`, `applyRerollAll` in `components.ts`; core gained `togglePlayer`/`setStackSize` so web and bot share the guest rules.
+- discord-api-types is imported as types only; the handful of enum values live in `discord/constants.ts`.
 
 ## Fallback if overlay clicks don't work
 

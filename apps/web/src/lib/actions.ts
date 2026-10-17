@@ -1,62 +1,22 @@
 import {
+  buildStack,
   draftToText,
   encodeDraft,
-  generateDraft,
   getHero,
   heroImages,
   movePosition,
-  pickedHeroId,
   rerollSlot,
+  rollKeepingLocks,
+  slotKey,
   updateSlot,
   type Draft,
-  type DraftSlot,
-  type Player,
   type Position,
-  type SlotInput,
 } from '@dota-picker/core';
 import { useDraftStore } from './draftStore';
-import { useSettings, type Settings } from './settings';
+import { useSettings } from './settings';
 import { useSquad } from './squad';
 import { toast } from './toast';
-import { copyText, GUEST_COLOR, newId, preload } from './ui';
-
-export interface StackMember extends SlotInput {
-  /** Stable identity used to match locked cards and position locks across rolls. */
-  key: string;
-}
-
-export const slotKey = (slot: Pick<DraftSlot, 'playerId' | 'name'>) => slot.playerId ?? `guest:${slot.name}`;
-export const guestName = (n: number) => `Guest ${n}`;
-
-/** Heroes each player had in their most recent saved drafts. */
-function recentPicks(drafts: Draft[], playerId: string, count: number): number[] {
-  if (!count) return [];
-  return drafts
-    .slice(0, count)
-    .flatMap((d) => d.slots.filter((s) => s.playerId === playerId).map(pickedHeroId))
-    .filter((id): id is number => id !== undefined);
-}
-
-export function buildStack(settings: Settings, players: Player[], drafts: Draft[]): StackMember[] {
-  const byId = new Map(players.map((p) => [p.id, p]));
-  const members: StackMember[] = settings.selected
-    .map((id) => byId.get(id))
-    .filter((p): p is Player => !!p)
-    .map((p) => ({
-      key: p.id,
-      playerId: p.id,
-      name: p.name,
-      color: p.color,
-      preferred: p.roles,
-      bans: p.bans,
-      avoid: recentPicks(drafts, p.id, settings.avoidRecent),
-    }));
-  for (let n = 1; n <= settings.guests; n++) {
-    const name = guestName(n);
-    members.push({ key: `guest:${name}`, playerId: null, name, color: GUEST_COLOR });
-  }
-  return members.slice(0, 5).map((m) => ({ ...m, fixedPosition: settings.fixedRoles[m.key] ?? null }));
-}
+import { copyText, newId, preload } from './ui';
 
 const currentStack = () => {
   const { players, drafts } = useSquad.getState();
@@ -75,22 +35,9 @@ export function rollDraft(): void {
     toast.info("Pick who's playing first");
     return;
   }
-  const s = useSettings.getState();
   const current = useDraftStore.getState().draft;
-  const keep = stack.map((m) => current?.slots.find((slot) => slot.locked && slotKey(slot) === m.key));
-  const result = generateDraft(stack, {
-    mode: s.mode,
-    theme: s.theme,
-    comboStyle: s.comboStyle,
-    roles: s.roles,
-    positions: s.positions,
-    choices: s.choices,
-    bans: s.bans,
-    keep,
-    previous: current ?? undefined,
-  });
+  const { draft: result, rolled: spin } = rollKeepingLocks(stack, useSettings.getState(), current);
   const draft: Draft = { ...result, id: newId(), createdAt: Date.now() };
-  const spin = draft.slots.map((_, i) => i).filter((i) => !keep[i]);
   preloadDraft(draft, spin);
   useDraftStore.getState().show(draft, spin);
   if (location.search) history.replaceState(null, '', '/');

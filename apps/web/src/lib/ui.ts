@@ -30,8 +30,6 @@ export const PLAYER_COLORS = [
   '#a46900',
 ];
 
-export const GUEST_COLOR = '#8b96a8';
-
 export const cx = (...classes: (string | false | null | undefined)[]) => classes.filter(Boolean).join(' ');
 
 export const newId = (): string =>

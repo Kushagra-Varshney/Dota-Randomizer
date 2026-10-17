@@ -1,32 +1,15 @@
 import {
-  MAX_STACK,
-  POSITIONS,
-  type ComboChoice,
-  type DraftMode,
+  DEFAULT_DRAFT_SETTINGS,
+  setStackSize,
+  togglePlayer,
+  type DraftSettings,
   type Position,
-  type RoleMode,
-  type ThemeChoice,
 } from '@dota-picker/core';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-export interface Settings {
-  mode: DraftMode;
-  theme: ThemeChoice;
-  comboStyle: ComboChoice;
-  roles: RoleMode;
-  positions: Position[];
-  choices: number;
-  /** How many recent saved drafts to steer away from (0 = off). */
-  avoidRecent: number;
-  /** Heroes nobody gets. */
-  bans: number[];
+export interface Settings extends DraftSettings {
   animate: boolean;
-  /** Selected squad player ids, in selection order. */
-  selected: string[];
-  guests: number;
-  /** Position locks for this session, keyed by slot key. */
-  fixedRoles: Record<string, Position>;
   rulesOpen: boolean;
 }
 
@@ -37,43 +20,15 @@ interface SettingsStore extends Settings {
   setFixedRole: (key: string, position: Position | null) => void;
 }
 
-const DEFAULTS: Settings = {
-  mode: 'standard',
-  theme: 'surprise',
-  comboStyle: 'all',
-  roles: 'random',
-  positions: [...POSITIONS],
-  choices: 1,
-  avoidRecent: 0,
-  bans: [],
-  animate: true,
-  selected: [],
-  guests: 0,
-  fixedRoles: {},
-  rulesOpen: true,
-};
+const DEFAULTS: Settings = { ...DEFAULT_DRAFT_SETTINGS, animate: true, rulesOpen: true };
 
 export const useSettings = create<SettingsStore>()(
   persist(
     (set, get) => ({
       ...DEFAULTS,
       set: (patch) => set(patch),
-      togglePlayer: (id) => {
-        const { selected, guests } = get();
-        if (selected.includes(id)) {
-          set({ selected: selected.filter((x) => x !== id) });
-        } else if (selected.length + guests < MAX_STACK) {
-          set({ selected: [...selected, id] });
-        } else if (guests > 0) {
-          // Stack is full of guests: a real player replaces one.
-          set({ selected: [...selected, id], guests: guests - 1 });
-        }
-      },
-      setStackSize: (size) => {
-        const { selected } = get();
-        if (size >= selected.length) set({ guests: size - selected.length });
-        else set({ selected: selected.slice(0, size), guests: 0 });
-      },
+      togglePlayer: (id) => set(togglePlayer(get(), id)),
+      setStackSize: (size) => set(setStackSize(get(), size)),
       setFixedRole: (key, position) => {
         const fixedRoles = Object.fromEntries(
           Object.entries(get().fixedRoles).filter(([k, p]) => k !== key && p !== position),

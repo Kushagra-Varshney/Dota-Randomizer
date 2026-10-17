@@ -7,3 +7,4 @@ export * from './rng';
 export * from './draft';
 export * from './validate';
 export * from './share';
+export * from './stack';

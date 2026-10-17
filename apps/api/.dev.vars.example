@@ -1,3 +1,16 @@
-# Copy to .dev.vars to test the PIN locally. In production set it with:
+# Copy to .dev.vars for local development. Never commit .dev.vars.
+
+# Optional squad PIN, to test it locally. In production set it with:
 #   npx wrangler secret put SQUAD_PIN
 SQUAD_PIN=1234
+
+# Discord bot (docs/discord-bot-plan.md). Locally these override the "vars" in wrangler.jsonc.
+# Developer Portal -> your app -> General Information.
+DISCORD_APPLICATION_ID=
+DISCORD_PUBLIC_KEY=
+# Comma-separated server ids the bot answers in (Developer Mode -> right-click server -> Copy Server ID).
+DISCORD_GUILD_IDS=
+# Only for `npm run discord:register` on your machine. Developer Portal -> Bot -> Reset Token.
+DISCORD_BOT_TOKEN=
+# Optional: register commands to this one server instead of globally (updates instantly while iterating).
+DISCORD_DEV_GUILD_ID=

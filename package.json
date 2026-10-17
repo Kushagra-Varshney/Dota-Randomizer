@@ -12,13 +12,14 @@
     "dev:api": "npm -w @dota-picker/api run dev",
     "dev:web": "npm -w @dota-picker/web run dev",
     "build": "npm -w @dota-picker/web run build",
-    "test": "npm -w @dota-picker/core run test",
+    "test": "npm run test --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "db:migrate:local": "npm -w @dota-picker/api run db:migrate:local",
     "db:migrate:remote": "npm -w @dota-picker/api run db:migrate:remote",
     "deploy": "npm run build && npm -w @dota-picker/api run deploy",
     "heroes:sync": "npm -w @dota-picker/core run heroes:sync",
-    "combos:check": "npm -w @dota-picker/core run combos:check"
+    "combos:check": "npm -w @dota-picker/core run combos:check",
+    "discord:register": "npm -w @dota-picker/api run discord:register"
   },
   "devDependencies": {
     "concurrently": "^10.0.5",

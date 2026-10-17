@@ -9,7 +9,9 @@
     "deploy": "wrangler d1 migrations apply DB --remote && wrangler deploy",
     "db:migrate:local": "wrangler d1 migrations apply DB --local",
     "db:migrate:remote": "wrangler d1 migrations apply DB --remote",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "discord:register": "node --env-file=.dev.vars scripts/register-commands.mjs"
   },
   "dependencies": {
     "@dota-picker/core": "*",
@@ -17,6 +19,8 @@
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20261003.1",
+    "discord-api-types": "^0.38.56",
+    "vitest": "^5.0.5",
     "wrangler": "^4.147.0"
   }
 }

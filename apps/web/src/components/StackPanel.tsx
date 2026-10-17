@@ -1,11 +1,10 @@
-import { MAX_STACK, POSITION_INFO, POSITIONS, type Player, type Position } from '@dota-picker/core';
+import { GUEST_COLOR, guestName, MAX_STACK, POSITION_INFO, POSITIONS, type Player, type Position } from '@dota-picker/core';
 import { Pin, Plus, UserPlus, Users, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { guestName } from '../lib/actions';
 import { nextColor } from '../lib/players';
 import { useSettings } from '../lib/settings';
 import { useSquad } from '../lib/squad';
-import { cx, GUEST_COLOR, newId } from '../lib/ui';
+import { cx, newId } from '../lib/ui';
 import { Avatar, MenuItem, Panel, Popover, PositionIcon } from './primitives';
 
 export function StackPanel() {

@@ -1,33 +1,15 @@
 import { Hono } from 'hono';
-import { isId, sanitizeDraft, sanitizePlayer, type Player } from '@dota-picker/core';
+import { isId, sanitizeDraft, sanitizePlayer } from '@dota-picker/core';
+import { listDrafts, listPlayers, MAX_DRAFTS, saveDraft } from './db';
+import { handleDiscord, type DiscordEnv } from './discord/handler';
 import { requirePin } from './pin';
 
-interface Env {
+interface Env extends DiscordEnv {
   DB: D1Database;
   ASSETS: Fetcher;
   /** Optional. When set, every write needs the `x-squad-pin` header. */
   SQUAD_PIN?: string;
 }
-
-interface PlayerRow {
-  id: string;
-  name: string;
-  color: string;
-  roles: string;
-  bans: string;
-  created_at: number;
-}
-
-const MAX_DRAFTS = 200;
-
-const toPlayer = (row: PlayerRow): Player => ({
-  id: row.id,
-  name: row.name,
-  color: row.color,
-  roles: JSON.parse(row.roles),
-  bans: JSON.parse(row.bans),
-  createdAt: row.created_at,
-});
 
 const api = new Hono<{ Bindings: Env }>().basePath('/api');
 
@@ -38,10 +20,7 @@ api.get('/health', (c) => c.json({ ok: true, pinRequired: Boolean(c.env.SQUAD_PI
 // Lets the UI check a PIN: the middleware already rejected it if it's wrong.
 api.post('/pin', (c) => c.json({ ok: true }));
 
-api.get('/players', async (c) => {
-  const { results } = await c.env.DB.prepare('SELECT * FROM players ORDER BY created_at').all<PlayerRow>();
-  return c.json(results.map(toPlayer));
-});
+api.get('/players', async (c) => c.json(await listPlayers(c.env.DB)));
 
 api.put('/players/:id', async (c) => {
   const player = sanitizePlayer({ ...(await c.req.json().catch(() => ({}))), id: c.req.param('id') });
@@ -64,26 +43,13 @@ api.delete('/players/:id', async (c) => {
 
 api.get('/drafts', async (c) => {
   const limit = Math.min(Math.max(Number(c.req.query('limit')) || 50, 1), MAX_DRAFTS);
-  const { results } = await c.env.DB.prepare('SELECT data FROM drafts ORDER BY created_at DESC LIMIT ?')
-    .bind(limit)
-    .all<{ data: string }>();
-  return c.json(results.map((r) => JSON.parse(r.data)));
+  return c.json(await listDrafts(c.env.DB, limit));
 });
 
 api.put('/drafts/:id', async (c) => {
   const draft = sanitizeDraft({ ...(await c.req.json().catch(() => ({}))), id: c.req.param('id') });
   if (!draft) return c.json({ error: 'Invalid draft' }, 400);
-  await c.env.DB.batch([
-    c.env.DB.prepare('INSERT OR REPLACE INTO drafts (id, created_at, data) VALUES (?, ?, ?)').bind(
-      draft.id,
-      draft.createdAt,
-      JSON.stringify(draft),
-    ),
-    // Keep the table small: history only needs the most recent drafts.
-    c.env.DB.prepare(
-      'DELETE FROM drafts WHERE id NOT IN (SELECT id FROM drafts ORDER BY created_at DESC LIMIT ?)',
-    ).bind(MAX_DRAFTS),
-  ]);
+  await saveDraft(c.env.DB, draft);
   return c.json(draft);
 });
 
@@ -103,6 +69,8 @@ api.onError((err, c) => {
 export default {
   fetch(request, env, ctx) {
     const { pathname } = new URL(request.url);
+    // Ahead of the Hono app: Discord signs its requests and can't send the squad PIN.
+    if (pathname === '/api/discord/interactions') return handleDiscord(request, env, ctx);
     if (pathname === '/api' || pathname.startsWith('/api/')) return api.fetch(request, env, ctx);
     return env.ASSETS.fetch(request);
   },

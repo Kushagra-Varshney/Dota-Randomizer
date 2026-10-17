@@ -42,7 +42,7 @@ npm run dev        # API on :8787 (local D1) + web on http://localhost:5173
 
 `npm run dev:web` alone also works. The app notices the API is missing and switches to Local mode.
 
-Other scripts: `npm test` (engine tests), `npm run typecheck`, `npm run build`.
+Other scripts: `npm test` (engine + API tests), `npm run typecheck`, `npm run build`.
 
 ## Deploy (free, ~2 minutes)
 
@@ -77,6 +77,24 @@ cd apps/api && npx wrangler d1 execute DB --remote --command "DELETE FROM pin_at
 
 [.github/workflows/deploy.yml](.github/workflows/deploy.yml) deploys on every push to `main`. Add two repository secrets: `CLOUDFLARE_API_TOKEN` (a token from the "Edit Cloudflare Workers" template, plus D1 edit permission) and `CLOUDFLARE_ACCOUNT_ID`.
 
+## Discord bot
+
+Draft and reroll from Discord's in-game overlay without alt-tabbing. The bot posts the lineup in a `#draft` channel with buttons (reroll a slot, lock, reroll unlocked, save), and everyone sees the same lineup. It runs inside the same Worker over Discord's HTTP interactions, uses the same squad, and drafts saved from Discord show up in History. Design notes: [docs/discord-bot-plan.md](docs/discord-bot-plan.md).
+
+**Commands.** `/setup [layout]` (Manage Server) makes the current channel the draft channel and posts the control panel: who's playing, mode, guests, roles and a 🎲 Draft button. `/draft [mode]` rolls a new draft. `/rules` changes roles, choices, avoid-recent and positions. Mid-game, use only the buttons: the overlay can't send slash commands.
+
+**Set up** (once):
+
+1. [Discord Developer Portal](https://discord.com/developers/applications) → **New Application**. From **General Information**, copy the **Application ID** and **Public Key**; from **Bot**, reset and copy the token.
+2. Put them in `apps/api/.dev.vars` (see [.dev.vars.example](apps/api/.dev.vars.example)), plus your server id in `DISCORD_GUILD_IDS` (Discord → Settings → Advanced → Developer Mode, then right-click the server → Copy Server ID). The token is only used by the register script; never commit it.
+3. Invite it: `https://discord.com/oauth2/authorize?client_id=<APP_ID>&scope=applications.commands`. No `bot` scope is needed.
+4. For production, also put `DISCORD_APPLICATION_ID`, `DISCORD_PUBLIC_KEY` and `DISCORD_GUILD_IDS` in the `vars` of [wrangler.jsonc](apps/api/wrangler.jsonc) and deploy. While the public key is empty the bot is off and its route returns 404.
+5. **General Information → Interactions Endpoint URL**: `https://dota-picker.<you>.workers.dev/api/discord/interactions`. Discord checks it when you save.
+6. `npm run discord:register` registers the slash commands. With `DISCORD_DEV_GUILD_ID` set it registers to that one server instead, where changes show up instantly. If you used both, each command shows twice in that server: `npm run discord:register -- --clear` removes the set it targets.
+7. Make a `#draft` channel, run `/setup` there. In Dota use **Borderless Window** (the overlay doesn't show over fullscreen), open the overlay (Shift+` by default) and pin `#draft`. Don't mute the channel, or it won't show in the overlay.
+
+**Local testing.** Discord needs a public HTTPS URL. Run `npm run dev`, then `cloudflared tunnel --url http://localhost:8787` (`winget install Cloudflare.cloudflared`; no account needed) and point the Interactions Endpoint URL at `https://<random>.trycloudflare.com/api/discord/interactions`. Local mode uses the local D1, so add players in the local web app first.
+
 ## Keeping combos current
 
 Every Wombo combo in [combos.ts](packages/core/src/combos.ts) lists the exact abilities it relies on (e.g. `tidehunter_ravage`, `enigma_black_hole`) and the patch it was last checked on (`verifiedPatch`). Three things keep the list honest:
@@ -107,3 +125,4 @@ All under `/api`. Writes need an `x-squad-pin` header when `SQUAD_PIN` is set (4
 | PUT / DELETE | `/players/:id` | Upsert / remove a player |
 | GET | `/drafts?limit=50` | Saved drafts, newest first (keeps the last 200) |
 | PUT / DELETE | `/drafts/:id` | Save / remove a draft |
+| POST | `/discord/interactions` | Discord bot. Signed by Discord instead of the PIN; only answers servers in `DISCORD_GUILD_IDS` |

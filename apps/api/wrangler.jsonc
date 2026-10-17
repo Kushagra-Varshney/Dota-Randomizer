@@ -15,6 +15,14 @@
 			"/api/*"
 		]
 	},
+	// Discord bot (see docs/discord-bot-plan.md). Public values, not secrets: copy them from the
+	// Developer Portal. While DISCORD_PUBLIC_KEY is empty the bot route returns 404.
+	// DISCORD_GUILD_IDS is a comma-separated allowlist of servers the bot answers in.
+	"vars": {
+		"DISCORD_APPLICATION_ID": "",
+		"DISCORD_PUBLIC_KEY": "",
+		"DISCORD_GUILD_IDS": ""
+	},
 	// Created automatically by the first `wrangler deploy`. The ID isn't a secret; keep it committed.
 	"d1_databases": [
 		{
