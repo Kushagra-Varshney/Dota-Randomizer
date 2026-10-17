@@ -192,8 +192,8 @@ function draftEmbeds(draft: DraftResult, layout: Layout): APIEmbed[] {
       const hero = getHero(s.heroes[s.pick ?? 0] ?? 0);
       return {
         color: colorInt(s.color),
-        title: `${s.locked ? '🔒 ' : ''}${slotHeroes(s)}`,
-        description: `${positionTag(s)} · ${s.name}`,
+        title: `${s.locked ? '🔒 ' : ''}${s.name}`,
+        description: `${positionTag(s)} · ${slotHeroes(s)}`,
         ...(hero && { thumbnail: { url: heroImages.portrait(hero) } }),
       };
     });
@@ -201,7 +201,8 @@ function draftEmbeds(draft: DraftResult, layout: Layout): APIEmbed[] {
   return [
     {
       color: BRAND_COLOR,
-      description: slots.map((s) => `${s.locked ? '🔒 ' : ''}${positionTag(s)} **${slotHeroes(s)}** · ${s.name}`).join('\n'),
+      // Player first and bold: who plays what is what people scan for; the hero name follows.
+      description: slots.map((s) => `${s.locked ? '🔒 ' : ''}**${s.name}** · ${positionTag(s)} ${slotHeroes(s)}`).join('\n'),
     },
   ];
 }

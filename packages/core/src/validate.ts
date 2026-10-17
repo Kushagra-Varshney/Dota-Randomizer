@@ -5,7 +5,8 @@ import type { Draft, DraftSlot, Player } from './types';
 
 const HEX_COLOR = /^#[0-9a-f]{6}$/i;
 const ID = /^[\w-]{1,64}$/;
-export const MAX_NAME = 24;
+/** Fits any Steam display name (Steam caps them at 32). */
+export const MAX_NAME = 32;
 
 type Obj = Record<string, unknown>;
 const isObj = (v: unknown): v is Obj => typeof v === 'object' && v !== null && !Array.isArray(v);

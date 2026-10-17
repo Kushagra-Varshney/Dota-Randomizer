@@ -1,4 +1,4 @@
-import { GUEST_COLOR, guestName, MAX_STACK, POSITION_INFO, POSITIONS, type Player, type Position } from '@dota-picker/core';
+import { GUEST_COLOR, guestName, MAX_NAME, MAX_STACK, POSITION_INFO, POSITIONS, type Player, type Position } from '@dota-picker/core';
 import { Pin, Plus, UserPlus, Users, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { nextColor } from '../lib/players';
@@ -215,7 +215,7 @@ function QuickAdd({ onAdded, empty }: { onAdded: (id: string) => void; empty: bo
         <input
           value={name}
           onChange={(e) => setName(e.target.value)}
-          maxLength={24}
+          maxLength={MAX_NAME}
           placeholder="Add a player…"
           aria-label="New player name"
           className="min-w-0 flex-1 bg-transparent py-1 text-sm outline-none placeholder:text-faint"

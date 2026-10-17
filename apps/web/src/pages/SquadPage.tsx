@@ -1,4 +1,4 @@
-import { getHero, heroImages, pickedHeroId, POSITION_INFO, POSITIONS, type Player, type Position } from '@dota-picker/core';
+import { getHero, heroImages, MAX_NAME, pickedHeroId, POSITION_INFO, POSITIONS, type Player, type Position } from '@dota-picker/core';
 import { Ban, Check, Pencil, Trash2, UserPlus, Users } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { HeroPicker } from '../components/HeroPicker';
@@ -60,7 +60,7 @@ function AddPlayer() {
       <input
         value={name}
         onChange={(e) => setName(e.target.value)}
-        maxLength={24}
+        maxLength={MAX_NAME}
         placeholder="Friend's name or Steam nickname"
         aria-label="New player name"
         className="min-w-0 flex-1 bg-transparent py-2 text-base outline-none placeholder:text-faint"
@@ -135,7 +135,7 @@ function PlayerCard({ player }: { player: Player }) {
         <label className="group flex min-w-0 flex-1 items-center gap-2">
           <input
             value={name}
-            maxLength={24}
+            maxLength={MAX_NAME}
             onChange={(e) => setName(e.target.value)}
             onBlur={() => (name.trim() && name.trim() !== player.name ? save({ name: name.trim() }) : setName(player.name))}
             onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
