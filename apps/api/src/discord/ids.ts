@@ -6,11 +6,15 @@ export type PanelControl = (typeof PANEL_CONTROLS)[number];
 /** Controls on the /squad picker: only who's playing, plus Draft. */
 export const SQUAD_CONTROLS = ['players', 'guest-', 'guest+', 'draft'] as const;
 export type SquadControl = (typeof SQUAD_CONTROLS)[number];
+/** Controls under a draft message, so the newest draft works as a panel too ('draft' = New draft). */
+export const DRAFT_CONTROLS = ['players', 'mode', 'theme', 'combo', 'guest-', 'guest+', 'draft'] as const;
+export type DraftControl = (typeof DRAFT_CONTROLS)[number];
 
 /** What a button or select does, encoded in its custom_id as `dp:<action>:<arg>[:<slot>]`. */
 export type ComponentAction =
   | { action: 'panel'; control: PanelControl }
   | { action: 'squad'; control: SquadControl }
+  | { action: 'draftControl'; draftId: string; control: DraftControl }
   | { action: 'reroll'; draftId: string; slot: number }
   | { action: 'lock'; draftId: string; slot: number }
   | { action: 'rerollAll'; draftId: string }
@@ -24,6 +28,8 @@ export function encodeId(a: ComponentAction): string {
       return `dp:p:${a.control}`;
     case 'squad':
       return `dp:s:${a.control}`;
+    case 'draftControl':
+      return `dp:dc:${a.draftId}:${a.control}`;
     case 'reroll':
     case 'lock':
       return `dp:${CODES[a.action]}:${a.draftId}:${a.slot}`;
@@ -45,6 +51,10 @@ export function parseId(customId: string): ComponentAction | null {
     return control && slotText === undefined ? { action: 'squad', control } : null;
   }
   if (!isId(arg)) return null;
+  if (code === 'dc') {
+    const control = DRAFT_CONTROLS.find((c) => c === slotText);
+    return control ? { action: 'draftControl', draftId: arg, control } : null;
+  }
   if (code === 'rr' || code === 'lk') {
     const slot = Number(slotText);
     if (!Number.isInteger(slot) || slot < 0 || slot > 4 || String(slot) !== slotText) return null;

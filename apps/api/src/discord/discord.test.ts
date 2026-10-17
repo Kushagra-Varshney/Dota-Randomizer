@@ -14,7 +14,7 @@ import { describe, expect, it } from 'vitest';
 import { COMMANDS, LAYOUT_CHOICES, MODE_CHOICES } from '../../scripts/commands.mjs';
 import { parsePositions } from './commands';
 import { applyLock, applyPanel, applyReroll, applyRerollAll, freshDraft, historyCopy } from './components';
-import { encodeId, parseId, PANEL_CONTROLS, SQUAD_CONTROLS, type ComponentAction } from './ids';
+import { DRAFT_CONTROLS, encodeId, parseId, PANEL_CONTROLS, SQUAD_CONTROLS, type ComponentAction } from './ids';
 import { handleDiscord, type DiscordEnv } from './handler';
 import { MAX_SELECT_OPTIONS, renderDraft, renderPanel, renderSquadPicker, type MessageData } from './render';
 import { LAYOUTS, type LiveChange, type LiveDraft } from './store';
@@ -134,6 +134,7 @@ describe('custom ids', () => {
   const actions: ComponentAction[] = [
     ...PANEL_CONTROLS.map((control) => ({ action: 'panel' as const, control })),
     ...SQUAD_CONTROLS.map((control) => ({ action: 'squad' as const, control })),
+    ...DRAFT_CONTROLS.map((control) => ({ action: 'draftControl' as const, draftId: UUID, control })),
     { action: 'reroll', draftId: UUID, slot: 0 },
     { action: 'lock', draftId: UUID, slot: 4 },
     { action: 'rerollAll', draftId: UUID },
@@ -149,7 +150,7 @@ describe('custom ids', () => {
   });
 
   it('rejects junk', () => {
-    for (const id of ['', 'dp', 'xx:p:mode', 'dp:p:nope', 'dp:p:mode:1', `dp:rr:${UUID}`, `dp:rr:${UUID}:5`, `dp:rr:${UUID}:01`, `dp:rr:${UUID}:-1`, `dp:sv:${UUID}:1`, 'dp:sv:bad id', `dp:zz:${UUID}`, `dp:ra:${UUID}:x:y`]) {
+    for (const id of ['', 'dp', 'xx:p:mode', 'dp:p:nope', 'dp:p:mode:1', `dp:rr:${UUID}`, `dp:rr:${UUID}:5`, `dp:rr:${UUID}:01`, `dp:rr:${UUID}:-1`, `dp:sv:${UUID}:1`, 'dp:sv:bad id', `dp:zz:${UUID}`, `dp:ra:${UUID}:x:y`, `dp:dc:${UUID}`, `dp:dc:${UUID}:roles`, 'dp:dc:bad id:mode']) {
       expect(parseId(id), id).toBeNull();
     }
   });
@@ -205,17 +206,31 @@ describe('render', () => {
       for (let n = 1; n <= 5; n++)
         for (const choices of [1, 3])
           for (const layout of LAYOUTS) {
-            const { live } = liveFor(n, { mode, choices });
-            const msg = renderDraft(live, layout);
-            expectWithinLimits(msg);
-            expect(msg.components).toHaveLength(1);
+            const { live, s, players } = liveFor(n, { mode, choices });
+            for (const squadList of [players, [], squad(30)]) {
+              const msg = renderDraft(live, layout, s, squadList, ORIGIN);
+              expectWithinLimits(msg);
+              const detail = mode === 'theme' || mode === 'wombo' ? 1 : 0;
+              expect(msg.components).toHaveLength(3 + detail + (squadList.length ? 1 : 0));
+            }
           }
   });
 
+  it('puts squad, mode and New draft controls under the draft, tied to that draft', () => {
+    const { live, s, players } = liveFor(3, { mode: 'wombo' });
+    const rows = renderDraft(live, 'compact', s, players, ORIGIN).components as Row[];
+    const actions = rows.slice(1).flatMap((r) => r.components.map((c) => ('custom_id' in c ? parseId(c.custom_id) : null)));
+    expect(actions).toEqual(
+      ['players', 'mode', 'combo', 'guest-', 'guest+', 'draft'].map((control) => ({ action: 'draftControl', draftId: UUID, control })),
+    );
+    const last = rows.at(-1)!.components.at(-1)!;
+    expect(last).toMatchObject({ label: 'New draft', style: 1 });
+  });
+
   it('has one reroll button per player in position order, disabled when locked', () => {
-    const { live } = liveFor(4);
+    const { live, s, players } = liveFor(4);
     const locked = next(live, applyLock(live, 1));
-    const buttons = (renderDraft(locked, 'compact').components as Row[])[0]!.components;
+    const buttons = (renderDraft(locked, 'compact', s, players, ORIGIN).components as Row[])[0]!.components;
     const order = locked.draft.slots.map((s, i) => ({ s, i })).sort((a, b) => a.s.position - b.s.position);
     expect(buttons.map((c) => 'custom_id' in c && c.custom_id)).toEqual(
       order.map(({ i }) => encodeId({ action: 'reroll', draftId: UUID, slot: i })),
@@ -225,10 +240,10 @@ describe('render', () => {
   });
 
   it('shows the player first', () => {
-    const { live } = liveFor(2);
-    const [compact] = renderDraft(live, 'compact').embeds!;
+    const { live, s, players } = liveFor(2);
+    const [compact] = renderDraft(live, 'compact', s, players, ORIGIN).embeds!;
     expect(compact!.description!.split('\n')[0]).toMatch(/^\*\*Player \d\*\* · `\d /);
-    const cards = renderDraft(live, 'cards').embeds!;
+    const cards = renderDraft(live, 'cards', s, players, ORIGIN).embeds!;
     expect(cards.map((e) => e.title).sort()).toEqual(['Player 1', 'Player 2']);
   });
 

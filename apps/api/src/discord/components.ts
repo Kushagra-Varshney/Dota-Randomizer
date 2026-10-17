@@ -30,7 +30,7 @@ import {
 } from './store';
 
 export const EMPTY_STACK = "Pick who's playing first.";
-export const EXPIRED = 'That draft has expired. Hit 🎲 Draft on the panel.';
+export const EXPIRED = 'That draft has expired. Run `/draft` or hit 🎲 Draft on the panel.';
 const NOT_SET_UP = 'Run `/setup` in a channel first.';
 
 const newDraftId = () => crypto.randomUUID();
@@ -114,11 +114,11 @@ async function loadStack(ctx: BotContext, guild: GuildConfig) {
 
 /** Rolls and posts a new draft message (panel Draft button and /draft). */
 export async function postNewDraft(ctx: BotContext, guild: GuildConfig): Promise<InteractionReply> {
-  const { stack } = await loadStack(ctx, guild);
+  const { stack, players } = await loadStack(ctx, guild);
   const draft = freshDraft(stack, guild.settings);
   if (!draft) return { kind: 'message', data: ephemeral(EMPTY_STACK) };
   const live = await createLiveDraft(ctx.db, guild.guildId, draft);
-  return { kind: 'message', data: renderDraft(live, guild.layout) };
+  return { kind: 'message', data: renderDraft(live, guild.layout, guild.settings, players, ctx.origin) };
 }
 
 const values = (i: APIMessageComponentInteraction): string[] => ('values' in i.data ? i.data.values : []);
@@ -147,7 +147,22 @@ export async function handleComponent(i: APIMessageComponentInteraction, ctx: Bo
   }
 
   const draftId = action.draftId;
-  const render = (live: LiveDraft): InteractionReply => ({ kind: 'update', data: renderDraft(live, guild.layout) });
+
+  // Squad and mode controls under a draft: they change the next draft, not this lineup.
+  if (action.action === 'draftControl') {
+    if (action.control === 'draft') return postNewDraft(ctx, guild);
+    const [players, live] = await Promise.all([listPlayers(ctx.db), getLiveDraft(ctx.db, draftId)]);
+    if (!live || live.guildId !== guild.guildId) return { kind: 'message', data: ephemeral(EXPIRED) };
+    const settings = applyPanel(guild.settings, action.control, values(i), players);
+    await saveSettings(ctx.db, guild.guildId, settings);
+    return { kind: 'update', data: renderDraft(live, guild.layout, settings, players, ctx.origin) };
+  }
+
+  const { stack, players } = await loadStack(ctx, guild);
+  const render = (live: LiveDraft): InteractionReply => ({
+    kind: 'update',
+    data: renderDraft(live, guild.layout, guild.settings, players, ctx.origin),
+  });
 
   if (action.action === 'save') {
     const live = await getLiveDraft(ctx.db, draftId);
@@ -160,7 +175,6 @@ export async function handleComponent(i: APIMessageComponentInteraction, ctx: Bo
     return latest ? render(latest) : { kind: 'message', data: ephemeral(EXPIRED) };
   }
 
-  const { stack } = action.action === 'lock' ? { stack: [] } : await loadStack(ctx, guild);
   const result = await mutateLiveDraft(ctx.db, draftId, (live) => {
     if (live.guildId !== guild.guildId) return EXPIRED;
     switch (action.action) {

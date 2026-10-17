@@ -80,18 +80,23 @@ export function panelSummary(settings: DraftSettings, players: readonly Player[]
   return parts.filter(Boolean).join(' · ');
 }
 
-/** Where the who's-playing controls live: the panel, or the /squad picker. Same behaviour, own custom_ids. */
-type StackHost = 'panel' | 'squad';
-type StackControl = 'players' | 'guest-' | 'guest+' | 'draft';
-const stackId = (host: StackHost, control: StackControl) => encodeId({ action: host, control });
+/**
+ * The same controls appear on the panel, the /squad picker and under each draft; each host gives
+ * them its own custom_ids. 'draft' is the Draft / New draft button.
+ */
+type IdFor = (control: 'players' | 'mode' | 'theme' | 'combo' | 'guest-' | 'guest+' | 'draft') => string;
+const panelIds: IdFor = (control) => encodeId({ action: 'panel', control });
+const squadIds: IdFor = (control) =>
+  encodeId({ action: 'squad', control: control as 'players' | 'guest-' | 'guest+' | 'draft' });
+const draftIds = (draftId: string): IdFor => (control) => encodeId({ action: 'draftControl', draftId, control });
 
 /** The "Who's playing?" select (plus notes for an empty or oversized squad). */
-function playersSelect(settings: DraftSettings, players: readonly Player[], origin: string, host: StackHost) {
+function playersSelect(settings: DraftSettings, players: readonly Player[], origin: string, idFor: IdFor) {
   const shown = players.slice(0, MAX_SELECT_OPTIONS);
   if (!shown.length) return { rows: [], notes: [`No squad yet. Add players at ${origin}/squad, or play with guests.`] };
   const select = row({
     type: Component.StringSelect,
-    custom_id: stackId(host, 'players'),
+    custom_id: idFor('players'),
     placeholder: "Who's playing?",
     min_values: 0,
     max_values: Math.min(MAX_STACK, shown.length),
@@ -101,65 +106,20 @@ function playersSelect(settings: DraftSettings, players: readonly Player[], orig
   return { rows: [select], notes };
 }
 
-function guestButtons(settings: DraftSettings, players: readonly Player[], host: StackHost): APIButtonComponent[] {
-  const size = Math.min(stackPlayers(settings, players).length + settings.guests, MAX_STACK);
-  return [
-    {
-      type: Component.Button,
-      style: Style.Secondary,
-      custom_id: stackId(host, 'guest-'),
-      label: 'Guest',
-      emoji: { name: '➖' },
-      disabled: settings.guests === 0,
-    },
-    {
-      type: Component.Button,
-      style: Style.Secondary,
-      custom_id: stackId(host, 'guest+'),
-      label: 'Guest',
-      emoji: { name: '➕' },
-      disabled: size >= MAX_STACK,
-    },
-  ];
-}
-
-const draftButton = (host: StackHost): APIButtonComponent => ({
-  type: Component.Button,
-  style: Style.Primary,
-  custom_id: stackId(host, 'draft'),
-  label: 'Draft',
-  emoji: { name: '🎲' },
-});
-
-/** The /squad picker (only the person who ran it sees it): who's playing, guests, Draft. Nothing else changes. */
-export function renderSquadPicker(settings: DraftSettings, players: readonly Player[], origin: string): MessageData {
-  const { rows, notes } = playersSelect(settings, players, origin, 'squad');
-  return {
-    content: [`**Playing:** ${playingText(settings, players)}`, ...notes].join('\n'),
-    components: [...rows, row(...guestButtons(settings, players, 'squad'), draftButton('squad'))],
-    flags: EPHEMERAL,
-    allowed_mentions: NO_MENTIONS,
-  };
-}
-
-/** The control panel: who's playing, mode, guests, roles and the Draft button. */
-export function renderPanel(settings: DraftSettings, players: readonly Player[], origin: string): MessageData {
-  const { rows, notes } = playersSelect(settings, players, origin, 'panel');
-  const lines = [panelSummary(settings, players), ...notes];
-
-  rows.push(
+/** The mode select, plus the theme or combo-style select when the mode has one. */
+function modeRows(settings: DraftSettings, idFor: IdFor): Row[] {
+  const rows = [
     row({
       type: Component.StringSelect,
-      custom_id: encodeId({ action: 'panel', control: 'mode' }),
+      custom_id: idFor('mode'),
       options: MODES.map((m) => ({ label: m.name, value: m.id, description: m.blurb, default: m.id === settings.mode })),
     }),
-  );
-
+  ];
   if (settings.mode === 'theme') {
     rows.push(
       row({
         type: Component.StringSelect,
-        custom_id: encodeId({ action: 'panel', control: 'theme' }),
+        custom_id: idFor('theme'),
         options: [
           { label: 'Surprise me', value: 'surprise', description: 'A random theme each draft', default: settings.theme === 'surprise' },
           ...THEMES.map((t) => ({ label: t.name, value: t.id, description: t.blurb, default: t.id === settings.theme })),
@@ -170,7 +130,7 @@ export function renderPanel(settings: DraftSettings, players: readonly Player[],
     rows.push(
       row({
         type: Component.StringSelect,
-        custom_id: encodeId({ action: 'panel', control: 'combo' }),
+        custom_id: idFor('combo'),
         options: (Object.keys(COMBO_STYLE_LABEL) as ComboChoice[]).map((c) => ({
           label: COMBO_STYLE_LABEL[c],
           value: c,
@@ -179,17 +139,66 @@ export function renderPanel(settings: DraftSettings, players: readonly Player[],
       }),
     );
   }
+  return rows;
+}
+
+function guestButtons(settings: DraftSettings, players: readonly Player[], idFor: IdFor): APIButtonComponent[] {
+  const size = Math.min(stackPlayers(settings, players).length + settings.guests, MAX_STACK);
+  return [
+    {
+      type: Component.Button,
+      style: Style.Secondary,
+      custom_id: idFor('guest-'),
+      label: 'Guest',
+      emoji: { name: '➖' },
+      disabled: settings.guests === 0,
+    },
+    {
+      type: Component.Button,
+      style: Style.Secondary,
+      custom_id: idFor('guest+'),
+      label: 'Guest',
+      emoji: { name: '➕' },
+      disabled: size >= MAX_STACK,
+    },
+  ];
+}
+
+const draftButton = (idFor: IdFor, label = 'Draft'): APIButtonComponent => ({
+  type: Component.Button,
+  style: Style.Primary,
+  custom_id: idFor('draft'),
+  label,
+  emoji: { name: '🎲' },
+});
+
+/** The /squad picker (only the person who ran it sees it): who's playing, guests, Draft. Nothing else changes. */
+export function renderSquadPicker(settings: DraftSettings, players: readonly Player[], origin: string): MessageData {
+  const { rows, notes } = playersSelect(settings, players, origin, squadIds);
+  return {
+    content: [`**Playing:** ${playingText(settings, players)}`, ...notes].join('\n'),
+    components: [...rows, row(...guestButtons(settings, players, squadIds), draftButton(squadIds))],
+    flags: EPHEMERAL,
+    allowed_mentions: NO_MENTIONS,
+  };
+}
+
+/** The control panel: who's playing, mode, guests, roles and the Draft button. */
+export function renderPanel(settings: DraftSettings, players: readonly Player[], origin: string): MessageData {
+  const { rows, notes } = playersSelect(settings, players, origin, panelIds);
+  const lines = [panelSummary(settings, players), ...notes];
+  rows.push(...modeRows(settings, panelIds));
 
   rows.push(
     row(
-      ...guestButtons(settings, players, 'panel'),
+      ...guestButtons(settings, players, panelIds),
       {
         type: Component.Button,
         style: Style.Secondary,
         custom_id: encodeId({ action: 'panel', control: 'roles' }),
         label: `Roles: ${settings.roles === 'preferred' ? 'Preferred' : 'Random'}`,
       },
-      draftButton('panel'),
+      draftButton(panelIds),
     ),
   );
 
@@ -235,10 +244,19 @@ function draftEmbeds(draft: DraftResult, layout: Layout): APIEmbed[] {
 }
 
 /**
- * A posted draft: the lineup plus one 🎲 reroll button per player, in position order. (Lock,
- * reroll-unlocked and save still work for older messages; they're just not shown any more.)
+ * A posted draft: the lineup, one 🎲 reroll button per player (in position order), then the panel's
+ * squad and mode controls and 🎲 New draft, so the newest draft is all you need in the overlay.
+ * Changing squad or mode only affects the next draft. (Lock, reroll-unlocked and save still work
+ * for older messages; they're just not shown any more.)
  */
-export function renderDraft(live: Pick<LiveDraft, 'id' | 'draft'>, layout: Layout): MessageData {
+export function renderDraft(
+  live: Pick<LiveDraft, 'id' | 'draft'>,
+  layout: Layout,
+  settings: DraftSettings,
+  players: readonly Player[],
+  origin: string,
+): MessageData {
+  const idFor = draftIds(live.id);
   const { draft } = live;
   const order = draft.slots.map((s, i) => ({ s, i })).sort((a, b) => a.s.position - b.s.position);
   const rerolls: APIButtonComponent[] = order.map(({ s, i }) => ({
@@ -252,7 +270,13 @@ export function renderDraft(live: Pick<LiveDraft, 'id' | 'draft'>, layout: Layou
   return {
     content: draftHeader(draft),
     embeds: draftEmbeds(draft, layout),
-    components: [row(...rerolls)],
+    // At most 5 rows: rerolls, squad, mode, theme/combo, buttons.
+    components: [
+      row(...rerolls),
+      ...playersSelect(settings, players, origin, idFor).rows,
+      ...modeRows(settings, idFor),
+      row(...guestButtons(settings, players, idFor), draftButton(idFor, 'New draft')),
+    ],
     allowed_mentions: NO_MENTIONS,
   };
 }
