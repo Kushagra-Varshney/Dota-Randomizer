@@ -16,7 +16,7 @@ import { parsePositions } from './commands';
 import { applyLock, applyPanel, applyReroll, applyRerollAll, freshDraft, historyCopy } from './components';
 import { encodeId, parseId, PANEL_CONTROLS, type ComponentAction } from './ids';
 import { handleDiscord, type DiscordEnv } from './handler';
-import { MAX_SELECT_OPTIONS, MAX_URL, renderDraft, renderPanel, type MessageData } from './render';
+import { MAX_SELECT_OPTIONS, renderDraft, renderPanel, type MessageData } from './render';
 import { LAYOUTS, type LiveChange, type LiveDraft } from './store';
 import { verifyDiscordRequest } from './verify';
 
@@ -183,7 +183,6 @@ function expectWithinLimits(msg: MessageData) {
         ids.add(c.custom_id);
       }
       if ('label' in c && c.label) expect(c.label.length).toBeLessThanOrEqual(80);
-      if ('url' in c) expect(c.url.length).toBeLessThanOrEqual(MAX_URL);
       if (c.type === 3) {
         expect(c.options.length).toBeGreaterThanOrEqual(1);
         expect(c.options.length).toBeLessThanOrEqual(MAX_SELECT_OPTIONS);
@@ -206,34 +205,30 @@ describe('render', () => {
         for (const choices of [1, 3])
           for (const layout of LAYOUTS) {
             const { live } = liveFor(n, { mode, choices });
-            const msg = renderDraft(live, layout, ORIGIN);
+            const msg = renderDraft(live, layout);
             expectWithinLimits(msg);
-            expect(msg.components).toHaveLength(3);
+            expect(msg.components).toHaveLength(1);
           }
   });
 
-  it('keeps the link under the URL cap, dropping it rather than breaking', () => {
-    const long = (n: number) => player(n, { name: '𝓛𝓸𝓷𝓰 𝓷𝓪𝓶𝓮 𝓯𝓸𝓻 𝓽𝓮𝓼𝓽𝓲𝓷𝓰 𝓲𝓽' });
-    const players = [1, 2, 3, 4, 5].map(long);
-    const s = settings({ selected: players.map((p) => p.id), choices: 3 });
-    const draft = freshDraft(buildStack(s, players, []), s)!;
-    const msg = renderDraft({ id: UUID, draft, saved: false }, 'compact', ORIGIN);
-    expectWithinLimits(msg);
-    expect((msg.components as Row[])[2]!.components).toHaveLength(2);
-    // Typical names keep the link.
-    const typical = renderDraft(liveFor(5, { choices: 3 }).live, 'compact', ORIGIN);
-    expect((typical.components as Row[])[2]!.components).toHaveLength(3);
+  it('has one reroll button per player in position order, disabled when locked', () => {
+    const { live } = liveFor(4);
+    const locked = next(live, applyLock(live, 1));
+    const buttons = (renderDraft(locked, 'compact').components as Row[])[0]!.components;
+    const order = locked.draft.slots.map((s, i) => ({ s, i })).sort((a, b) => a.s.position - b.s.position);
+    expect(buttons.map((c) => 'custom_id' in c && c.custom_id)).toEqual(
+      order.map(({ i }) => encodeId({ action: 'reroll', draftId: UUID, slot: i })),
+    );
+    expect(buttons.map((c) => ('label' in c ? c.label : ''))).toEqual(order.map(({ s }) => s.name));
+    expect(buttons.map((c) => !!('disabled' in c && c.disabled))).toEqual(order.map(({ i }) => i === 1));
   });
 
-  it('shows locks, disables rerolling locked slots, and marks saved', () => {
-    const { live } = liveFor(3);
-    const locked = next(live, applyLock(live, 1));
-    const rows = renderDraft({ ...locked, saved: true }, 'compact', ORIGIN).components as Row[];
-    const find = (row: number, id: string) => rows[row]!.components.find((c) => 'custom_id' in c && c.custom_id === id)!;
-    expect(find(0, encodeId({ action: 'reroll', draftId: UUID, slot: 1 }))).toMatchObject({ disabled: true });
-    expect(find(0, encodeId({ action: 'reroll', draftId: UUID, slot: 0 }))).toMatchObject({ disabled: false });
-    expect(find(1, encodeId({ action: 'lock', draftId: UUID, slot: 1 }))).toMatchObject({ style: 3, emoji: { name: '🔒' } });
-    expect(find(2, encodeId({ action: 'save', draftId: UUID }))).toMatchObject({ disabled: true, label: 'Saved ✓' });
+  it('shows the player first', () => {
+    const { live } = liveFor(2);
+    const [compact] = renderDraft(live, 'compact').embeds!;
+    expect(compact!.description!.split('\n')[0]).toMatch(/^\*\*Player \d\*\* · `\d /);
+    const cards = renderDraft(live, 'cards').embeds!;
+    expect(cards.map((e) => e.title).sort()).toEqual(['Player 1', 'Player 2']);
   });
 
   it('keeps the panel within limits for any squad size and mode', () => {

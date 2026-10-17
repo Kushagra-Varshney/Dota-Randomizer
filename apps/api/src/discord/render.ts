@@ -1,5 +1,4 @@
 import {
-  encodeDraft,
   getCombo,
   getHero,
   getMode,
@@ -32,9 +31,8 @@ type Row = APIActionRowComponent<APIComponentInMessageActionRow>;
 
 /** Never ping anyone, even if a player is named "@everyone". */
 const NO_MENTIONS = { parse: [] };
-/** Discord's caps: options per select, URL length of a link button. */
+/** Discord caps a select at 25 options. */
 export const MAX_SELECT_OPTIONS = 25;
-export const MAX_URL = 512;
 const BRAND_COLOR = 0xc23c2a;
 
 export const COMBO_STYLE_LABEL: Record<ComboChoice, string> = { all: 'Classics + memes', classic: 'Classics', meme: 'Memes' };
@@ -208,8 +206,11 @@ function draftEmbeds(draft: DraftResult, layout: Layout): APIEmbed[] {
   ];
 }
 
-/** A posted draft: lineup plus reroll, lock, reroll-unlocked, save and open buttons. */
-export function renderDraft(live: Pick<LiveDraft, 'id' | 'draft' | 'saved'>, layout: Layout, origin: string): MessageData {
+/**
+ * A posted draft: the lineup plus one 🎲 reroll button per player, in position order. (Lock,
+ * reroll-unlocked and save still work for older messages; they're just not shown any more.)
+ */
+export function renderDraft(live: Pick<LiveDraft, 'id' | 'draft'>, layout: Layout): MessageData {
   const { draft } = live;
   const order = draft.slots.map((s, i) => ({ s, i })).sort((a, b) => a.s.position - b.s.position);
   const rerolls: APIButtonComponent[] = order.map(({ s, i }) => ({
@@ -220,38 +221,10 @@ export function renderDraft(live: Pick<LiveDraft, 'id' | 'draft' | 'saved'>, lay
     emoji: { name: '🎲' },
     disabled: !!s.locked,
   }));
-  const locks: APIButtonComponent[] = order.map(({ s, i }) => ({
-    type: Component.Button,
-    style: s.locked ? Style.Success : Style.Secondary,
-    custom_id: encodeId({ action: 'lock', draftId: live.id, slot: i }),
-    label: s.name,
-    emoji: { name: s.locked ? '🔒' : '🔓' },
-  }));
-  const actions: APIButtonComponent[] = [
-    {
-      type: Component.Button,
-      style: Style.Primary,
-      custom_id: encodeId({ action: 'rerollAll', draftId: live.id }),
-      label: 'Reroll unlocked',
-      emoji: { name: '🎲' },
-    },
-    {
-      type: Component.Button,
-      style: live.saved ? Style.Success : Style.Secondary,
-      custom_id: encodeId({ action: 'save', draftId: live.id }),
-      label: live.saved ? 'Saved ✓' : 'Save',
-      ...(!live.saved && { emoji: { name: '💾' } }),
-      disabled: live.saved,
-    },
-  ];
-  const url = `${origin}/?d=${encodeDraft(draft)}`;
-  // Link buttons cap the URL; a stack of long unicode names could pass it, so just leave the link out.
-  if (url.length <= MAX_URL) actions.push({ type: Component.Button, style: Style.Link, url, label: '↗ Open' });
-
   return {
     content: draftHeader(draft),
     embeds: draftEmbeds(draft, layout),
-    components: [row(...rerolls), row(...locks), row(...actions)],
+    components: [row(...rerolls)],
     allowed_mentions: NO_MENTIONS,
   };
 }

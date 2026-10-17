@@ -43,7 +43,8 @@ export async function handleCommand(i: APIChatInputApplicationCommandInteraction
 
     case 'draft': {
       const guild = await getGuild(ctx.db, ctx.guildId);
-      if (!guild) return message('Run `/setup` in a channel first.');
+      // Settings can exist before /setup (e.g. bans set up ahead), but without a channel.
+      if (!guild?.channelId) return message('Run `/setup` in a channel first.');
       if (channelOf(i) !== guild.channelId) return message(`Drafts live in <#${guild.channelId}>.`);
       const mode = option(i, 'mode');
       if (mode === undefined) return postNewDraft(ctx, guild);

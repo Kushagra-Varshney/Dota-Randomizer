@@ -118,7 +118,7 @@ export async function postNewDraft(ctx: BotContext, guild: GuildConfig): Promise
   const draft = freshDraft(stack, guild.settings);
   if (!draft) return { kind: 'message', data: ephemeral(EMPTY_STACK) };
   const live = await createLiveDraft(ctx.db, guild.guildId, draft);
-  return { kind: 'message', data: renderDraft(live, guild.layout, ctx.origin) };
+  return { kind: 'message', data: renderDraft(live, guild.layout) };
 }
 
 const values = (i: APIMessageComponentInteraction): string[] => ('values' in i.data ? i.data.values : []);
@@ -139,7 +139,7 @@ export async function handleComponent(i: APIMessageComponentInteraction, ctx: Bo
   }
 
   const draftId = action.draftId;
-  const render = (live: LiveDraft): InteractionReply => ({ kind: 'update', data: renderDraft(live, guild.layout, ctx.origin) });
+  const render = (live: LiveDraft): InteractionReply => ({ kind: 'update', data: renderDraft(live, guild.layout) });
 
   if (action.action === 'save') {
     const live = await getLiveDraft(ctx.db, draftId);
