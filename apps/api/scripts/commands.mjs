@@ -25,9 +25,8 @@ export const COMMANDS = [
   {
     ...base,
     name: 'setup',
-    description: 'Make this the draft channel and post the control panel',
-    // Manage Server. The bot checks it again, since admins can override command permissions.
-    default_member_permissions: '32',
+    description: 'Post the control panel (choosing the draft channel needs Manage Server)',
+    // Visible to everyone: the bot only lets Manage Server pick the channel; anyone can re-post the panel there.
     options: [
       { type: STRING, name: 'layout', description: 'How draft messages look', required: false, choices: LAYOUT_CHOICES },
     ],

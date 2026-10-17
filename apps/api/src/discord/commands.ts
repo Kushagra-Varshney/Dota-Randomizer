@@ -35,7 +35,15 @@ export function parsePositions(text: string): DraftSettings['positions'] | null 
 export async function handleCommand(i: APIChatInputApplicationCommandInteraction, ctx: BotContext): Promise<InteractionReply> {
   switch (i.data.name) {
     case 'setup': {
-      if (!canManage(i)) return message('You need the **Manage Server** permission to run `/setup`.');
+      // Choosing the draft channel needs Manage Server; re-posting the panel where it already lives doesn't.
+      const current = await getGuild(ctx.db, ctx.guildId);
+      if (current?.channelId !== channelOf(i) && !canManage(i)) {
+        return message(
+          current?.channelId
+            ? `Drafts live in <#${current.channelId}>. Run \`/setup\` there, or ask someone with **Manage Server** to move it here.`
+            : 'Someone with the **Manage Server** permission needs to run `/setup` first, in the channel you want to draft in.',
+        );
+      }
       const layout = LAYOUTS.find((l) => l === option(i, 'layout'));
       const [guild, players] = await Promise.all([bindGuild(ctx.db, ctx.guildId, channelOf(i), layout), listPlayers(ctx.db)]);
       return { kind: 'message', data: renderPanel(guild.settings, players, ctx.origin) };

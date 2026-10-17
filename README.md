@@ -81,7 +81,7 @@ cd apps/api && npx wrangler d1 execute DB --remote --command "DELETE FROM pin_at
 
 Draft and reroll from Discord's in-game overlay without alt-tabbing. The bot posts the lineup in a `#draft` channel with buttons (reroll a slot, lock, reroll unlocked, save), and everyone sees the same lineup. It runs inside the same Worker over Discord's HTTP interactions, uses the same squad, and drafts saved from Discord show up in History. Design notes: [docs/discord-bot-plan.md](docs/discord-bot-plan.md).
 
-**Commands.** `/setup [layout]` (Manage Server) makes the current channel the draft channel and posts the control panel: who's playing, mode, guests, roles and a 🎲 Draft button. `/draft [mode]` rolls a new draft. `/rules` changes roles, choices, avoid-recent and positions. Mid-game, use only the buttons: the overlay can't send slash commands.
+**Commands.** `/setup [layout]` makes the current channel the draft channel (needs Manage Server; anyone can re-post the panel in the channel that is already set) and posts the control panel: who's playing, mode, guests, roles and a 🎲 Draft button. `/draft [mode]` rolls a new draft. `/rules` changes roles, choices, avoid-recent and positions. Mid-game, use only the buttons: the overlay can't send slash commands.
 
 **Set up** (once):
 
