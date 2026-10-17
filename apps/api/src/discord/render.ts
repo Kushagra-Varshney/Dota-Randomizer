@@ -72,6 +72,7 @@ export function panelSummary(settings: DraftSettings, players: readonly Player[]
     settings.positions.length < POSITIONS.length && `Positions ${[...settings.positions].sort().join('')}`,
     settings.choices > 1 && `Pick from ${settings.choices}`,
     settings.avoidRecent > 0 && `Avoid last ${settings.avoidRecent}`,
+    settings.bans.length > 0 && `Banned: ${settings.bans.map(heroName).join(', ')}`,
   ];
   return parts.filter(Boolean).join(' · ');
 }
