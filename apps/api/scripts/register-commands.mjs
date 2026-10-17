@@ -16,10 +16,13 @@ const res = await fetch(url, {
   headers: { Authorization: `Bot ${token}`, 'Content-Type': 'application/json' },
   body: JSON.stringify(clear ? [] : COMMANDS),
 });
+const target = guildId ? `server ${guildId}` : 'global';
 if (!res.ok) {
   console.error(`Discord answered ${res.status}: ${await res.text()}`);
-  process.exit(1);
+  if (res.status === 403 && guildId) console.error(`Is the app invited to server ${guildId}? See the README's Discord bot section.`);
+  // Not process.exit(): on Windows that can trip a libuv assertion right after fetch.
+  process.exitCode = 1;
+} else {
+  const saved = await res.json();
+  console.log(clear ? `Cleared ${target} commands.` : `Registered ${saved.map((c) => `/${c.name}`).join(', ')} (${target}).`);
 }
-const saved = await res.json();
-const target = guildId ? `server ${guildId}` : 'global';
-console.log(clear ? `Cleared ${target} commands.` : `Registered ${saved.map((c) => `/${c.name}`).join(', ')} (${target}).`);
