@@ -60,6 +60,7 @@ export async function handleDiscord(request: Request, env: DiscordEnv, _ctx: Exe
 
   const guildId = interaction.guild_id;
   if (!guildId || !allowedGuilds(env).has(guildId)) {
+    console.warn(`Discord interaction from server ${guildId ?? '(none: DM)'}, which isn't in DISCORD_GUILD_IDS`);
     return respond({ kind: 'message', data: ephemeral('Dota Picker is not enabled in this server.') });
   }
   const ctx: BotContext = { db: env.DB, guildId, origin: new URL(request.url).origin };
