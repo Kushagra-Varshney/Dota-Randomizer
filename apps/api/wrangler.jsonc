@@ -19,9 +19,9 @@
 	// Developer Portal. While DISCORD_PUBLIC_KEY is empty the bot route returns 404.
 	// DISCORD_GUILD_IDS is a comma-separated allowlist of servers the bot answers in.
 	"vars": {
-		"DISCORD_APPLICATION_ID": "",
-		"DISCORD_PUBLIC_KEY": "",
-		"DISCORD_GUILD_IDS": ""
+		"DISCORD_APPLICATION_ID": "1560998294338011186",
+		"DISCORD_PUBLIC_KEY": "3189edcf2f8ec45938ec7d03ab736400ee2c5bad6f7a95dc9d59c653fa49df07",
+		"DISCORD_GUILD_IDS": "1206497134938034196"
 	},
 	// Created automatically by the first `wrangler deploy`. The ID isn't a secret; keep it committed.
 	"d1_databases": [
