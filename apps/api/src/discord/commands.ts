@@ -7,7 +7,7 @@ import { listPlayers } from '../db';
 import { postNewDraft } from './components';
 import { ADMINISTRATOR, MANAGE_GUILD } from './constants';
 import type { BotContext, InteractionReply } from './handler';
-import { ephemeral, panelSummary, renderPanel } from './render';
+import { ephemeral, panelSummary, renderPanel, renderSquadPicker } from './render';
 import { bindGuild, getGuild, LAYOUTS, saveSettings } from './store';
 
 type Option = APIApplicationCommandInteractionDataBasicOption;
@@ -52,6 +52,14 @@ export async function handleCommand(i: APIChatInputApplicationCommandInteraction
       const settings = sanitizeDraftSettings({ ...guild.settings, mode });
       await saveSettings(ctx.db, guild.guildId, settings);
       return postNewDraft(ctx, { ...guild, settings });
+    }
+
+    case 'squad': {
+      const guild = await getGuild(ctx.db, ctx.guildId);
+      if (!guild?.channelId) return message('Run `/setup` in a channel first.');
+      if (channelOf(i) !== guild.channelId) return message(`Change the squad in <#${guild.channelId}>.`);
+      const players = await listPlayers(ctx.db);
+      return { kind: 'message', data: renderSquadPicker(guild.settings, players, ctx.origin) };
     }
 
     case 'rules': {

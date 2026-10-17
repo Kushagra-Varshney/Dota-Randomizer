@@ -48,6 +48,12 @@ export const COMMANDS = [
   },
   {
     ...base,
+    name: 'squad',
+    description: "Change who's playing (keeps mode and rules)",
+    options: [],
+  },
+  {
+    ...base,
     name: 'rules',
     description: 'Change the draft rules for this server',
     options: [

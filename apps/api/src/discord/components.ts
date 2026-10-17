@@ -16,7 +16,7 @@ import type { APIMessageComponentInteraction } from 'discord-api-types/v10';
 import { listDrafts, listPlayers, saveDraft } from '../db';
 import type { BotContext, InteractionReply } from './handler';
 import { parseId, type PanelControl } from './ids';
-import { ephemeral, MAX_SELECT_OPTIONS, renderDraft, renderPanel } from './render';
+import { ephemeral, MAX_SELECT_OPTIONS, renderDraft, renderPanel, renderSquadPicker } from './render';
 import {
   createLiveDraft,
   getGuild,
@@ -136,6 +136,14 @@ export async function handleComponent(i: APIMessageComponentInteraction, ctx: Bo
     const settings = applyPanel(guild.settings, action.control, values(i), players);
     await saveSettings(ctx.db, guild.guildId, settings);
     return { kind: 'update', data: renderPanel(settings, players, ctx.origin) };
+  }
+
+  if (action.action === 'squad') {
+    if (action.control === 'draft') return postNewDraft(ctx, guild);
+    const players = await listPlayers(ctx.db);
+    const settings = applyPanel(guild.settings, action.control, values(i), players);
+    await saveSettings(ctx.db, guild.guildId, settings);
+    return { kind: 'update', data: renderSquadPicker(settings, players, ctx.origin) };
   }
 
   const draftId = action.draftId;

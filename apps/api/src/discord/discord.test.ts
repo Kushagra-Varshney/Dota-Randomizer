@@ -14,9 +14,9 @@ import { describe, expect, it } from 'vitest';
 import { COMMANDS, LAYOUT_CHOICES, MODE_CHOICES } from '../../scripts/commands.mjs';
 import { parsePositions } from './commands';
 import { applyLock, applyPanel, applyReroll, applyRerollAll, freshDraft, historyCopy } from './components';
-import { encodeId, parseId, PANEL_CONTROLS, type ComponentAction } from './ids';
+import { encodeId, parseId, PANEL_CONTROLS, SQUAD_CONTROLS, type ComponentAction } from './ids';
 import { handleDiscord, type DiscordEnv } from './handler';
-import { MAX_SELECT_OPTIONS, renderDraft, renderPanel, type MessageData } from './render';
+import { MAX_SELECT_OPTIONS, renderDraft, renderPanel, renderSquadPicker, type MessageData } from './render';
 import { LAYOUTS, type LiveChange, type LiveDraft } from './store';
 import { verifyDiscordRequest } from './verify';
 
@@ -133,6 +133,7 @@ describe('handleDiscord', () => {
 describe('custom ids', () => {
   const actions: ComponentAction[] = [
     ...PANEL_CONTROLS.map((control) => ({ action: 'panel' as const, control })),
+    ...SQUAD_CONTROLS.map((control) => ({ action: 'squad' as const, control })),
     { action: 'reroll', draftId: UUID, slot: 0 },
     { action: 'lock', draftId: UUID, slot: 4 },
     { action: 'rerollAll', draftId: UUID },
@@ -229,6 +230,23 @@ describe('render', () => {
     expect(compact!.description!.split('\n')[0]).toMatch(/^\*\*Player \d\*\* · `\d /);
     const cards = renderDraft(live, 'cards').embeds!;
     expect(cards.map((e) => e.title).sort()).toEqual(['Player 1', 'Player 2']);
+  });
+
+  it('keeps the /squad picker private and within limits, with only squad controls', () => {
+    for (const n of [0, 1, 7, 30]) {
+      const players = squad(n);
+      const msg = renderSquadPicker(settings({ selected: players.slice(0, 3).map((p) => p.id), guests: 1 }), players, ORIGIN);
+      expectWithinLimits(msg);
+      expect(msg.flags).toBe(64);
+      const ids = (msg.components as Row[]).flatMap((r) => r.components.map((c) => ('custom_id' in c ? parseId(c.custom_id) : null)));
+      expect(ids.every((a) => a?.action === 'squad')).toBe(true);
+    }
+  });
+
+  it('/squad changes only who is playing', () => {
+    const before = settings({ mode: 'wombo', comboStyle: 'meme', roles: 'preferred', choices: 2, avoidRecent: 3, bans: [80], positions: [1, 2, 3] });
+    const after = applyPanel(applyPanel(before, 'players', ['p1', 'p2'], squad(7)), 'guest+', [], squad(7));
+    expect(after).toEqual({ ...before, selected: ['p1', 'p2'], guests: 1 });
   });
 
   it('keeps the panel within limits for any squad size and mode', () => {

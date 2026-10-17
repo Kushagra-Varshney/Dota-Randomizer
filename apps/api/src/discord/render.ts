@@ -55,16 +55,21 @@ export function modeLabel(settings: Pick<DraftSettings, 'mode' | 'theme' | 'comb
   return name;
 }
 
-/** One line summing up who's playing and the rules, shown on the panel. */
-export function panelSummary(settings: DraftSettings, players: readonly Player[]): string {
+/** "Kush, Ani + 1 guest", or "nobody yet". */
+export function playingText(settings: DraftSettings, players: readonly Player[]): string {
   const names = stackPlayers(settings, players).map((p) => p.name);
   const guests = Math.min(settings.guests, MAX_STACK - names.length);
   const playing = [names.join(', '), guests && `${names.length ? '+ ' : ''}${plural(guests, 'guest')}`]
     .filter(Boolean)
     .join(' ');
+  return playing || 'nobody yet';
+}
+
+/** One line summing up who's playing and the rules, shown on the panel. */
+export function panelSummary(settings: DraftSettings, players: readonly Player[]): string {
   const parts = [
     '**Dota Picker**',
-    `Playing: ${playing || 'nobody yet'}`,
+    `Playing: ${playingText(settings, players)}`,
     modeLabel(settings),
     `Roles: ${settings.roles}`,
     settings.positions.length < POSITIONS.length && `Positions ${[...settings.positions].sort().join('')}`,
@@ -75,27 +80,72 @@ export function panelSummary(settings: DraftSettings, players: readonly Player[]
   return parts.filter(Boolean).join(' · ');
 }
 
+/** Where the who's-playing controls live: the panel, or the /squad picker. Same behaviour, own custom_ids. */
+type StackHost = 'panel' | 'squad';
+type StackControl = 'players' | 'guest-' | 'guest+' | 'draft';
+const stackId = (host: StackHost, control: StackControl) => encodeId({ action: host, control });
+
+/** The "Who's playing?" select (plus notes for an empty or oversized squad). */
+function playersSelect(settings: DraftSettings, players: readonly Player[], origin: string, host: StackHost) {
+  const shown = players.slice(0, MAX_SELECT_OPTIONS);
+  if (!shown.length) return { rows: [], notes: [`No squad yet. Add players at ${origin}/squad, or play with guests.`] };
+  const select = row({
+    type: Component.StringSelect,
+    custom_id: stackId(host, 'players'),
+    placeholder: "Who's playing?",
+    min_values: 0,
+    max_values: Math.min(MAX_STACK, shown.length),
+    options: shown.map((p) => ({ label: p.name, value: p.id, default: settings.selected.includes(p.id) })),
+  });
+  const notes = players.length > shown.length ? [`-# Only the first ${MAX_SELECT_OPTIONS} squad players are listed.`] : [];
+  return { rows: [select], notes };
+}
+
+function guestButtons(settings: DraftSettings, players: readonly Player[], host: StackHost): APIButtonComponent[] {
+  const size = Math.min(stackPlayers(settings, players).length + settings.guests, MAX_STACK);
+  return [
+    {
+      type: Component.Button,
+      style: Style.Secondary,
+      custom_id: stackId(host, 'guest-'),
+      label: 'Guest',
+      emoji: { name: '➖' },
+      disabled: settings.guests === 0,
+    },
+    {
+      type: Component.Button,
+      style: Style.Secondary,
+      custom_id: stackId(host, 'guest+'),
+      label: 'Guest',
+      emoji: { name: '➕' },
+      disabled: size >= MAX_STACK,
+    },
+  ];
+}
+
+const draftButton = (host: StackHost): APIButtonComponent => ({
+  type: Component.Button,
+  style: Style.Primary,
+  custom_id: stackId(host, 'draft'),
+  label: 'Draft',
+  emoji: { name: '🎲' },
+});
+
+/** The /squad picker (only the person who ran it sees it): who's playing, guests, Draft. Nothing else changes. */
+export function renderSquadPicker(settings: DraftSettings, players: readonly Player[], origin: string): MessageData {
+  const { rows, notes } = playersSelect(settings, players, origin, 'squad');
+  return {
+    content: [`**Playing:** ${playingText(settings, players)}`, ...notes].join('\n'),
+    components: [...rows, row(...guestButtons(settings, players, 'squad'), draftButton('squad'))],
+    flags: EPHEMERAL,
+    allowed_mentions: NO_MENTIONS,
+  };
+}
+
 /** The control panel: who's playing, mode, guests, roles and the Draft button. */
 export function renderPanel(settings: DraftSettings, players: readonly Player[], origin: string): MessageData {
-  const lines = [panelSummary(settings, players)];
-  const rows: Row[] = [];
-
-  const shown = players.slice(0, MAX_SELECT_OPTIONS);
-  if (shown.length) {
-    rows.push(
-      row({
-        type: Component.StringSelect,
-        custom_id: encodeId({ action: 'panel', control: 'players' }),
-        placeholder: "Who's playing?",
-        min_values: 0,
-        max_values: Math.min(MAX_STACK, shown.length),
-        options: shown.map((p) => ({ label: p.name, value: p.id, default: settings.selected.includes(p.id) })),
-      }),
-    );
-    if (players.length > shown.length) lines.push(`-# Only the first ${MAX_SELECT_OPTIONS} squad players are listed.`);
-  } else {
-    lines.push(`No squad yet. Add players at ${origin}/squad, or play with guests.`);
-  }
+  const { rows, notes } = playersSelect(settings, players, origin, 'panel');
+  const lines = [panelSummary(settings, players), ...notes];
 
   rows.push(
     row({
@@ -130,38 +180,16 @@ export function renderPanel(settings: DraftSettings, players: readonly Player[],
     );
   }
 
-  const size = Math.min(stackPlayers(settings, players).length + settings.guests, MAX_STACK);
   rows.push(
     row(
-      {
-        type: Component.Button,
-        style: Style.Secondary,
-        custom_id: encodeId({ action: 'panel', control: 'guest-' }),
-        label: 'Guest',
-        emoji: { name: '➖' },
-        disabled: settings.guests === 0,
-      },
-      {
-        type: Component.Button,
-        style: Style.Secondary,
-        custom_id: encodeId({ action: 'panel', control: 'guest+' }),
-        label: 'Guest',
-        emoji: { name: '➕' },
-        disabled: size >= MAX_STACK,
-      },
+      ...guestButtons(settings, players, 'panel'),
       {
         type: Component.Button,
         style: Style.Secondary,
         custom_id: encodeId({ action: 'panel', control: 'roles' }),
         label: `Roles: ${settings.roles === 'preferred' ? 'Preferred' : 'Random'}`,
       },
-      {
-        type: Component.Button,
-        style: Style.Primary,
-        custom_id: encodeId({ action: 'panel', control: 'draft' }),
-        label: 'Draft',
-        emoji: { name: '🎲' },
-      },
+      draftButton('panel'),
     ),
   );
 
