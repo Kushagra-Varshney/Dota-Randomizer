@@ -1,6 +1,6 @@
 # Discord bot: implementation plan
 
-Status: **built, waiting on the Discord test** (written and implemented 2026-10-17). Milestones 1–6 are done and tested locally with signed fake interactions; Milestone 0 (overlay clicks) and 7 (real server) need Discord. Work happens on the `discord-bot` branch; merging to `main` auto-deploys.
+Status: **live** (planned and built 2026-10-17). Deployed to production with the test server allowlisted. Later changes from testing: drafts show only per-player reroll buttons, player names are listed before heroes, and `/squad` changes who's playing on its own. Milestone 0 (clicking in the overlay) is still to be confirmed in game.
 
 To pick this up in a new Claude Code session: `git switch discord-bot`, then ask Claude to read this file and start at [Milestones](#milestones).
 
